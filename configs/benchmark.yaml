@@ -1,0 +1,94 @@
+# QuantHive Benchmark Evaluation Configuration
+
+benchmark:
+  # Deterministic evaluation seeds
+  num_eval_seeds: 50
+  eval_seeds_start: 10000       # Seeds 10000-10049
+  max_steps: 500
+
+  # Baseline configurations
+  baselines:
+    B0:
+      name: "Random Policies"
+      risk_manager: "random"
+      portfolio_manager: "random"
+      trader: "random"
+    B1:
+      name: "Static Governance (All Rule-Based)"
+      risk_manager: "rule_based"
+      portfolio_manager: "rule_based"
+      trader: "rule_based"
+    B2:
+      name: "Learned Trader + Static Oversight"
+      risk_manager: "rule_based"
+      portfolio_manager: "rule_based"
+      trader: "learned"
+    B3:
+      name: "Partial Learned Governance"
+      risk_manager: "learned"
+      portfolio_manager: "rule_based"
+      trader: "learned"
+    B4:
+      name: "Full Learned Governance"
+      risk_manager: "learned"
+      portfolio_manager: "learned"
+      trader: "learned"
+
+  # Ablation studies
+  ablations:
+    A1:
+      name: "No Risk Manager"
+      description: "RM always outputs [1.0, 1.0, 0.0] (no constraints)"
+    A2:
+      name: "Static Risk Manager"
+      description: "RM always outputs [0.5, 1.0, 0.0] (fixed 50% limit)"
+    A3:
+      name: "No Portfolio Manager"
+      description: "PM always outputs [1.0, 0.0] (full allocation, no override)"
+    A4:
+      name: "No Inter-Agent Messages"
+      description: "RM/PM messages zeroed out in observations"
+    A5:
+      name: "No Regime Indicator"
+      description: "Regime field zeroed out in observations"
+    A6:
+      name: "Adversarial Trader"
+      description: "Trader reward negated (worst-case governance test)"
+
+  # Evaluation regimes
+  eval_regimes:
+    in_distribution:
+      - bull_steady
+      - bear_steady
+      - sideways_choppy
+      - mean_revert
+    out_of_distribution:
+      - flash_crash
+      - bubble_pop
+      - cascading_liquidation
+      - spoofing
+
+  # Metrics to compute
+  metrics:
+    - max_drawdown
+    - tail_loss_containment
+    - intervention_latency
+    - regime_recovery_time
+    - constraint_violation_rate
+    - governance_stability
+    - false_tightening_rate
+    - capital_utilization
+    - counterfactual_loss_prevented
+    - sharpe_ratio
+    - total_return
+    - sortino_ratio
+
+  # Statistical testing
+  statistics:
+    confidence_level: 0.95
+    bootstrap_samples: 1000
+    correction: "bonferroni"
+
+  # Output
+  output_dir: "results/benchmark"
+  figures_dir: "figures"

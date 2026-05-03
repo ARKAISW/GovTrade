@@ -1,0 +1,177 @@
+\documentclass[11pt]{article}
+
+% ─── Packages ────────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{algorithm, algorithmic}
+\usepackage{geometry}
+\usepackage{natbib}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{enumitem}
+
+\geometry{margin=1in}
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
+
+% ─── Theorem Environments ────────────────────────────────────────────────
+\newtheorem{definition}{Definition}
+\newtheorem{proposition}{Proposition}
+\newtheorem{theorem}{Theorem}
+
+% ─── Title ───────────────────────────────────────────────────────────────
+\title{%
+  \textbf{QuantHive: A Benchmark for Learned Adaptive Governance \\
+  in Multi-Agent Financial Systems}
+}
+\author{
+  Arka Sarkar \\
+  \texttt{arkasarkar1507@gmail.com}
+}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+% ═══════════════════════════════════════════════════════════════════════════
+\begin{abstract}
+% TODO: 150-250 word abstract
+% Structure: Problem → Approach → Key Result → Implication
+\end{abstract}
+
+% ═══════════════════════════════════════════════════════════════════════════
+\section{Introduction}
+\label{sec:intro}
+% TODO: 1.5-2 pages
+% - Motivate the problem: why static governance fails in adaptive markets
+% - State the research question
+% - Summarize contributions (3-4 bullet points)
+% - Paper outline
+
+% ═══════════════════════════════════════════════════════════════════════════
+\section{Related Work}
+\label{sec:related}
+% TODO: 1.5-2 pages
+% Subsections:
+% 2.1 Multi-Agent Reinforcement Learning
+% 2.2 Financial Market Simulation Environments
+% 2.3 Governance and Oversight in AI Systems
+% 2.4 Reward Design for Multi-Agent Systems
+
+% ═══════════════════════════════════════════════════════════════════════════
+\section{Problem Formulation}
+\label{sec:problem}
+% TODO: 2-3 pages
+% 3.1 Dec-POMDP Specification
+%     - State space S, observation spaces O_i, action spaces A_i
+%     - Transition function T, reward functions R_i
+%     - Formal definition using standard MARL notation
+% 3.2 Agent Roles and Reward Structure
+%     - Risk Manager reward decomposition
+%     - Portfolio Manager reward decomposition
+%     - Trader reward decomposition
+% 3.3 Governance as a Learning Problem
+
+% ═══════════════════════════════════════════════════════════════════════════
+\section{Environment Design}
+\label{sec:environment}
+% TODO: 3-4 pages
+% 4.1 Market Regime Engine
+%     - Table of 8 regimes with calibrated parameters
+%     - Markov transition matrix
+%     - Adversarial stress scenarios
+% 4.2 Agent Observation and Action Spaces
+%     - Per-agent observation composition
+%     - Inter-agent message passing
+% 4.3 Governance Enforcement Mechanism
+%     - How RM/PM messages constrain Trader actions
+%     - Intervention logging and compliance tracking
+% 4.4 Failure Taxonomy
+%     - 8 named failure modes with formal definitions
+
+% ═══════════════════════════════════════════════════════════════════════════
+\section{Training Methodology}
+\label{sec:training}
+% TODO: 2-3 pages
+% 5.1 PPO for Multi-Agent Governance
+%     - Network architecture (Actor-Critic MLP)
+%     - GAE and clipped surrogate objective
+% 5.2 Alternating Optimization
+%     - Training schedule and curriculum
+% 5.3 Anti-Gaming Mechanisms
+%     - Reward penalties for trivial strategies
+% 5.4 Curriculum Learning
+%     - Difficulty progression across episodes
+
+% ═══════════════════════════════════════════════════════════════════════════
+\section{Experiments}
+\label{sec:experiments}
+% TODO: 4-5 pages
+% 6.1 Experimental Setup
+%     - Hyperparameters table
+%     - Evaluation protocol (50 seeds, deterministic)
+% 6.2 Baseline Comparisons (B0-B4)
+%     - Table: all metrics across all baselines
+%     - Statistical significance tests
+% 6.3 Ablation Studies (A1-A6)
+%     - Each ablation's purpose and result
+% 6.4 Counterfactual Evaluation
+%     - World A vs World B analysis
+%     - Loss prevented during crash regimes
+% 6.5 Out-of-Distribution Robustness
+%     - In-distribution vs OOD metrics
+%     - Adaptation speed in unseen regimes
+
+% ═══════════════════════════════════════════════════════════════════════════
+\section{Analysis}
+\label{sec:analysis}
+% TODO: 3-4 pages
+% 7.1 Information-Theoretic Analysis
+%     - Mutual information between agent messages and actions
+% 7.2 Causal Intervention Analysis
+%     - do-calculus formulation
+%     - Causal effect of learned vs static governance
+% 7.3 Nash Equilibrium Analysis
+%     - Best-response computation
+%     - Convergence to epsilon-Nash
+% 7.4 Failure Mode Analysis
+%     - Distribution of governance failures
+%     - Regime-conditional failure rates
+
+% ═══════════════════════════════════════════════════════════════════════════
+\section{Discussion}
+\label{sec:discussion}
+% TODO: 1.5-2 pages
+% - Key findings and their implications
+% - Limitations of the current approach
+% - Generalization beyond finance (healthcare, autonomous systems)
+
+% ═══════════════════════════════════════════════════════════════════════════
+\section{Conclusion}
+\label{sec:conclusion}
+% TODO: 0.5-1 page
+% - Summarize contributions
+% - Future work directions
+
+% ═══════════════════════════════════════════════════════════════════════════
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+% ═══════════════════════════════════════════════════════════════════════════
+\appendix
+\section{Hyperparameter Tables}
+\label{app:hyperparams}
+% TODO: Full hyperparameter specification
+
+\section{Additional Figures}
+\label{app:figures}
+% TODO: Regime-conditional policy visualizations
+
+\section{Formal Environment Specification}
+\label{app:formal}
+% TODO: Complete Dec-POMDP specification
+
+\end{document}

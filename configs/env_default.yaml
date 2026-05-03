@@ -1,0 +1,47 @@
+# QuantHive Environment Configuration
+# A Benchmark for Learned Adaptive Governance in Multi-Agent Financial Systems
+
+environment:
+  initial_cash: 100000.0
+  commission: 0.001
+  max_steps: 500
+  ticker: "default"
+
+  # Observation dimensions
+  base_obs_size: 25          # 14 market + 5 portfolio + 5 risk + 1 regime
+  rm_message_size: 3         # [size_limit, allow_new, force_reduce]
+  pm_message_size: 2         # [capital_allocation, override_strength]
+
+  # Termination
+  blowup_threshold: 0.10     # Terminate if portfolio < 10% of initial
+
+regime_engine:
+  # Regime transition probabilities (Markov chain)
+  transition_mode: "markov"  # "markov" | "sequential" | "fixed"
+  min_regime_duration: 30    # Minimum steps before regime can switch
+  max_regime_duration: 150   # Maximum steps in one regime
+
+  # Which regimes are available per difficulty
+  easy_regimes:
+    - bull_steady
+    - mean_revert
+  medium_regimes:
+    - bull_steady
+    - sideways_choppy
+    - mean_revert
+    - bull_volatile
+    - bear_steady
+  hard_regimes:
+    - bull_steady
+    - bull_volatile
+    - bear_steady
+    - crash
+    - sideways_choppy
+    - mean_revert
+    - bubble_pop
+    - flash_crash
+  adversarial_regimes:
+    - spoofing
+    - delayed_signal
+    - correlated_selloff
+    - cascading_liquidation

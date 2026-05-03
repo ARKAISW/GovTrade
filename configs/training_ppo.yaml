@@ -1,0 +1,62 @@
+# QuantHive PPO Training Configuration
+
+training:
+  algorithm: "ppo"
+  total_episodes: 1500
+  max_steps_per_episode: 500
+  gamma: 0.99
+  gae_lambda: 0.95
+  seed: 42
+
+  # PPO Hyperparameters
+  ppo:
+    clip_epsilon: 0.2
+    entropy_coeff: 0.01
+    entropy_decay: 0.9995       # Anneal entropy bonus
+    value_loss_coeff: 0.5
+    max_grad_norm: 0.5
+    ppo_epochs: 4               # PPO update epochs per rollout
+    minibatch_size: 64
+    
+  # Learning rates (per agent)
+  learning_rates:
+    risk_manager: 3.0e-4
+    portfolio_manager: 3.0e-4
+    trader: 3.0e-4
+
+  # Network architecture
+  network:
+    hidden_sizes: [256, 256, 256]
+    activation: "gelu"
+    use_layer_norm: true
+    init_std: 0.5               # Initial policy std for exploration
+
+  # Alternating optimization
+  alternating:
+    enabled: true
+    frequency: 50               # Episodes per optimization phase
+    cycle: ["trader", "risk_manager", "portfolio_manager"]
+
+  # Curriculum schedule (regime difficulty progression)
+  curriculum:
+    enabled: true
+    phases:
+      - episodes: [0, 200]
+        difficulty: "easy"
+      - episodes: [200, 500]
+        difficulty: "medium"
+      - episodes: [500, 1000]
+        difficulty: "hard"
+      - episodes: [1000, 1500]
+        difficulty: "adversarial"
+
+  # Checkpointing
+  save_every: 100
+  output_dir: "outputs/ppo_training"
+  log_every: 10
+
+  # Optional WandB logging
+  wandb:
+    enabled: false
+    project: "quanthive-governance"
+    entity: null
