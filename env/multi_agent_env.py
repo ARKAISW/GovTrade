@@ -95,7 +95,9 @@ class MultiAgentTradingEnv(AECEnv):
         self._initial_cash = initial_cash
 
         if df is None:
+            gen_n = (max_steps + 1) if max_steps is not None else 500
             df, self._regime_labels = self._make_dummy_data(
+                n=gen_n,
                 difficulty=difficulty, seed=seed, forced_regime=forced_regime,
             )
         else:
