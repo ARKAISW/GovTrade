@@ -21,7 +21,7 @@ DEFAULT_WEIGHTS = {
 }
 
 # Normalization: tanh scale factor (higher = sharper gradient near zero)
-DEFAULT_NORM_SCALE = 5.0
+DEFAULT_NORM_SCALE = 10.0
 
 
 def compute_raw_reward(
@@ -58,7 +58,7 @@ def compute_raw_reward(
     w = weights or DEFAULT_WEIGHTS
 
     # Amplify per-step profit so it's not buried in noise
-    profit_signal = w["profit"] * profit * 1000.0
+    profit_signal = w["profit"] * profit * 100.0
 
     # Penalties
     dd_penalty = w["drawdown"] * drawdown
@@ -69,7 +69,7 @@ def compute_raw_reward(
     sharpe_bonus = w["sharpe"] * np.tanh(sharpe)
 
     # Hold penalty: small cost for doing nothing
-    hold_pen = w.get("hold_penalty", 0.01) if direction == 0 else 0.0
+    hold_pen = 0.0  # Hold penalty is now progressive, handled in env
 
     # Directional correctness: reward matching the trend
     dir_bonus = 0.0

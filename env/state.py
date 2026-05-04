@@ -103,11 +103,13 @@ class PortfolioState:
             # Long position
             return self.cash + position_qty * current_price
         else:
-            # Short position: cash already reduced by margin (|qty| * avg_cost)
-            # Unrealized P&L = |qty| * (avg_cost - current_price)
+            # Short position: cash already reduced by margin (|qty| * entry_price)
+            # Must add back: locked margin + unrealized P&L
             avg_cost = self.avg_costs.get(ticker, current_price)
-            unrealized = abs(position_qty) * (avg_cost - current_price)
-            return self.cash + unrealized
+            abs_qty = abs(position_qty)
+            margin_held = abs_qty * avg_cost          # The cash that was locked
+            unrealized = abs_qty * (avg_cost - current_price)  # P&L
+            return self.cash + margin_held + unrealized
 
     def unrealized_pnl(self, current_price: float, ticker: str = "default") -> float:
         """

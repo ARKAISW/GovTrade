@@ -387,6 +387,13 @@ class MultiAgentTradingEnv(AECEnv):
         compliance_bonus = 0.15 if (n_interventions == 0 and direction != 0) else (-0.05 * n_interventions)
         self._trader_compliance_bonus = compliance_bonus
 
+        # Track activity for anti-reward-hacking
+        if direction == 0:
+            self._consecutive_holds += 1
+        else:
+            self._consecutive_holds = 0
+            self._trades_executed += 1
+
     # ───────────────────────────────────────────────────────────────────────────
     # Market Advance (called after Trader acts)
     # ───────────────────────────────────────────────────────────────────────────
@@ -437,7 +444,34 @@ class MultiAgentTradingEnv(AECEnv):
             price_trend=price_trend,
         )
 
-        initial_fails = self._failure_tax.total_failures()
+        # ═══════════════════════════════════════════════════════════════════
+        # LAYER 1: Progressive Consecutive Hold Penalty
+        # ═══════════════════════════════════════════════════════════════════
+        # Escalates the longer the agent refuses to trade.
+        # 1 hold = -0.05, 5 holds = -0.25, 10+ holds = -0.50 (capped)
+        # Resets to 0 when a trade is executed.
+        progressive_hold_cost = 0.05 * min(self._consecutive_holds, 10) if direction == 0 else 0.0
+
+        # ═══════════════════════════════════════════════════════════════════
+        # LAYER 2: Continuous Governance Penalties (no binary thresholds)
+        # ═══════════════════════════════════════════════════════════════════
+        cap_alloc = float(self._pm_message[0])
+        size_limit = float(self._rm_message[0])
+        current_dd = float(self._risk.current_drawdown)
+
+        # PM: penalize low capital allocation continuously
+        # Full penalty at 0%, zero penalty at 30%+
+        utilization_penalty = max(0.0, 0.30 - cap_alloc) * 0.5
+
+        # RM: penalize overly tight size limits ONLY when market is calm
+        # During real drawdowns (>10%), restricting is correct behavior
+        rm_restrict_penalty = 0.0
+        if current_dd < 0.10:
+            rm_restrict_penalty = max(0.0, 0.30 - size_limit) * 0.3
+
+        continuous_gov_penalty = utilization_penalty + rm_restrict_penalty
+
+        # Keep failure taxonomy for research logging (NOT for reward)
         self._failure_tax.check_step(
             step=self._current_step,
             rm_action=self._rm_message,
@@ -446,11 +480,11 @@ class MultiAgentTradingEnv(AECEnv):
             drawdown=float(self._risk.max_drawdown),
             regime_label=getattr(self, "_current_regime_label", ""),
         )
-        new_fails = self._failure_tax.total_failures() - initial_fails
-        fail_penalty = -0.05 * new_fails
 
         # ── Trader reward ───────────────────────────────────────────────────
-        trader_reward = normalize_reward(raw_r + self._trader_compliance_bonus) + fail_penalty
+        trader_reward = normalize_reward(raw_r + self._trader_compliance_bonus)
+        trader_reward -= progressive_hold_cost
+        trader_reward -= continuous_gov_penalty
         self.rewards[TRADER] = float(trader_reward)
         self._episode_rewards.append(trader_reward)
 
@@ -467,12 +501,14 @@ class MultiAgentTradingEnv(AECEnv):
         pm_reward = (grade - 0.5) * 0.4   # Grade in [0,1] → centered reward
         if self._risk.max_drawdown > 0.20:
             pm_reward -= 0.15              # PM penalized for deep drawdown
-        pm_reward += fail_penalty
+        pm_reward -= utilization_penalty   # PM owns the capital allocation penalty
         self.rewards[PORTFOLIO_MGR] = float(pm_reward)
 
         # ── RM: shared downside with final portfolio value ──────────────────
         rm_pain = min(profit * 0.5, 0.0)   # Only share downside
-        self.rewards[RISK_MANAGER] = float(self._rm_cycle_reward + rm_pain + fail_penalty)
+        rm_reward_final = float(self._rm_cycle_reward + rm_pain)
+        rm_reward_final -= rm_restrict_penalty  # RM owns the restrictiveness penalty
+        self.rewards[RISK_MANAGER] = float(rm_reward_final)
 
         # ── Termination Check ───────────────────────────────────────────────
         terminated = (
@@ -482,6 +518,16 @@ class MultiAgentTradingEnv(AECEnv):
         if terminated:
             for ag in self.agents:
                 self.terminations[ag] = True
+
+            # ═══════════════════════════════════════════════════════════════
+            # LAYER 3: End-of-Episode Activity Gate
+            # ═══════════════════════════════════════════════════════════════
+            # If agent traded less than 15% of steps, crush all rewards
+            trade_ratio = self._trades_executed / max(self._current_step, 1)
+            if trade_ratio < 0.15:
+                inactivity_slam = -3.0 * (1.0 - trade_ratio / 0.15)
+                for ag in self.agents:
+                    self.rewards[ag] = float(self.rewards.get(ag, 0.0) + inactivity_slam)
 
         # Rebuild observations for the next cycle
         self._generate_observations()
@@ -562,6 +608,10 @@ class MultiAgentTradingEnv(AECEnv):
         self._pending_trade  = None
         self._rm_cycle_reward = 0.0
         self._trader_compliance_bonus = 0.0
+
+        # Anti-reward-hacking tracking
+        self._consecutive_holds = 0
+        self._trades_executed = 0
 
         self._episode_values  = [self.initial_cash]
         self._episode_rewards = []

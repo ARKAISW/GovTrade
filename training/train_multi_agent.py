@@ -90,9 +90,11 @@ class RulePortfolioManagerPolicy:
     """Baseline rule-based PM policy."""
 
     def act(self, obs: np.ndarray) -> np.ndarray:
-        grade         = float(obs[22]) if len(obs) > 22 else 0.5
-        drawdown      = float(obs[21]) if len(obs) > 21 else 0.0
-        cap_alloc     = float(np.clip(0.3 + 0.5 * grade - drawdown * 1.5, 0.05, 0.90))
+        # PM obs layout: market(14) + portfolio(5) + risk(5) + regime(1) + RM_msg(3) = 28
+        # Risk features: current_dd=obs[19], max_dd=obs[20], sharpe=obs[21], vol=obs[22]
+        drawdown      = float(obs[20]) if len(obs) > 20 else 0.0  # max_drawdown
+        sharpe        = float(obs[21]) if len(obs) > 21 else 0.0  # sharpe_ratio
+        cap_alloc     = float(np.clip(0.3 + 0.5 * max(sharpe, 0) - drawdown * 1.5, 0.05, 0.90))
         override_str  = 0.0  # Generally approve
         noise         = np.random.normal(0, 0.03, 2)
         return np.clip(
@@ -108,7 +110,7 @@ class RuleTraderPolicy:
         # obs[5] = RSI (normalized 0-1), obs[11] = BB position
         rsi       = float(obs[5]) if len(obs) > 5 else 0.5
         bb_pos    = float(obs[11]) if len(obs) > 11 else 0.5
-        rm_limit  = float(obs[24]) if len(obs) > 24 else 0.5   # RM size limit from message
+        rm_limit  = float(obs[25]) if len(obs) > 25 else 0.5   # RM size limit (first element of RM message)
 
         if rsi < 0.35 and bb_pos < 0.25:
             direction = 1  # Oversold → BUY
