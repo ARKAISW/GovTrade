@@ -387,13 +387,6 @@ class MultiAgentTradingEnv(AECEnv):
         compliance_bonus = 0.15 if (n_interventions == 0 and direction != 0) else (-0.05 * n_interventions)
         self._trader_compliance_bonus = compliance_bonus
 
-        # Track activity for anti-reward-hacking
-        if direction == 0:
-            self._consecutive_holds += 1
-        else:
-            self._consecutive_holds = 0
-            self._trades_executed += 1
-
     # ───────────────────────────────────────────────────────────────────────────
     # Market Advance (called after Trader acts)
     # ───────────────────────────────────────────────────────────────────────────
@@ -419,6 +412,13 @@ class MultiAgentTradingEnv(AECEnv):
 
         # Execute trade in portfolio state
         traded = self._execute_trade(direction, size, sl_input, tp_input, current_price)
+
+        # Track activity based on actual execution (closing the fake-trade loophole)
+        if not traded:
+            self._consecutive_holds += 1
+        else:
+            self._consecutive_holds = 0
+            self._trades_executed += 1
 
         # Advance market step
         self._current_step += 1

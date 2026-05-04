@@ -389,11 +389,13 @@ class MultiAgentPPOTrainer:
                 )
 
             if not env.agents:
-                final_info = env.infos.get(TRADER, {})
-                # Mark last transitions as done
+                # Capture final terminal rewards (e.g., bankruptcy penalties, activity gates)
                 for ag in ALL_AGENTS:
                     if len(buffers[ag]) > 0:
+                        buffers[ag].rewards[-1] = env.rewards.get(ag, 0.0)
                         buffers[ag].dones[-1] = True
+                
+                final_info = env.infos.get(TRADER, {})
                 break
 
         # Compute GAE for each agent
