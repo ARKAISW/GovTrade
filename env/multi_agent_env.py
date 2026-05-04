@@ -34,6 +34,7 @@ except ImportError:
 
 from env.state import MarketState, PortfolioState, RiskState, get_observation
 from env.reward import compute_raw_reward, normalize_reward, compute_grade
+from env.failure_taxonomy import GovernanceFailureTaxonomy
 from utils.indicators import compute_indicators
 
 
@@ -436,8 +437,20 @@ class MultiAgentTradingEnv(AECEnv):
             price_trend=price_trend,
         )
 
+        initial_fails = self._failure_tax.total_failures()
+        self._failure_tax.check_step(
+            step=self._current_step,
+            rm_action=self._rm_message,
+            pm_action=self._pm_message,
+            portfolio_value=float(new_value),
+            drawdown=float(self._risk.max_drawdown),
+            regime_label=getattr(self, "_current_regime_label", ""),
+        )
+        new_fails = self._failure_tax.total_failures() - initial_fails
+        fail_penalty = -0.05 * new_fails
+
         # ── Trader reward ───────────────────────────────────────────────────
-        trader_reward = normalize_reward(raw_r + self._trader_compliance_bonus)
+        trader_reward = normalize_reward(raw_r + self._trader_compliance_bonus) + fail_penalty
         self.rewards[TRADER] = float(trader_reward)
         self._episode_rewards.append(trader_reward)
 
@@ -454,11 +467,12 @@ class MultiAgentTradingEnv(AECEnv):
         pm_reward = (grade - 0.5) * 0.4   # Grade in [0,1] → centered reward
         if self._risk.max_drawdown > 0.20:
             pm_reward -= 0.15              # PM penalized for deep drawdown
+        pm_reward += fail_penalty
         self.rewards[PORTFOLIO_MGR] = float(pm_reward)
 
         # ── RM: shared downside with final portfolio value ──────────────────
         rm_pain = min(profit * 0.5, 0.0)   # Only share downside
-        self.rewards[RISK_MANAGER] = float(self._rm_cycle_reward + rm_pain)
+        self.rewards[RISK_MANAGER] = float(self._rm_cycle_reward + rm_pain + fail_penalty)
 
         # ── Termination Check ───────────────────────────────────────────────
         terminated = (
@@ -542,6 +556,8 @@ class MultiAgentTradingEnv(AECEnv):
         self._pm_message = np.array([0.5, 0.0], dtype=np.float32)        # [cap_alloc=50%, override_strength=0]
         self._pm_capital_allocation = 0.5
         self._pm_override_strength  = 0.0
+
+        self._failure_tax = GovernanceFailureTaxonomy()
 
         self._pending_trade  = None
         self._rm_cycle_reward = 0.0

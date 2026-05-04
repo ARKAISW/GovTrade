@@ -306,9 +306,9 @@ class MultiAgentPPOTrainer:
         """Collect one full episode of experience."""
         buffers = {ag: RolloutBuffer() for ag in ALL_AGENTS}
         gov_metrics = GovernanceMetrics()
-        failure_tax = GovernanceFailureTaxonomy()
 
         env.reset(seed=None)  # Let regime engine handle seeding
+        failure_tax = env._failure_tax
         gov_metrics.peak_value = self.initial_cash
 
         step_count = 0
@@ -386,14 +386,6 @@ class MultiAgentPPOTrainer:
                     pm_action=env._pm_message,
                     regime_label=getattr(env, "_current_regime_label", ""),
                     current_drawdown=info.get("max_drawdown", 0.0),
-                )
-                failure_tax.check_step(
-                    step=env._current_step,
-                    rm_action=env._rm_message,
-                    pm_action=env._pm_message,
-                    portfolio_value=info.get("portfolio_value", self.initial_cash),
-                    drawdown=info.get("max_drawdown", 0.0),
-                    regime_label=getattr(env, "_current_regime_label", ""),
                 )
 
             if not env.agents:
