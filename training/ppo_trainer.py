@@ -558,6 +558,17 @@ class MultiAgentPPOTrainer:
         torch.save(self.pm.state_dict(), ckpt_dir / "portfolio_manager.pt")
         torch.save(self.trader.state_dict(), ckpt_dir / "trader.pt")
 
+    def load_checkpoint(self, ckpt_dir_str: str):
+        """Load model checkpoints to resume training."""
+        ckpt_dir = Path(ckpt_dir_str)
+        if not ckpt_dir.exists():
+            raise FileNotFoundError(f"Checkpoint directory {ckpt_dir} not found.")
+        
+        self.rm.load_state_dict(torch.load(ckpt_dir / "risk_manager.pt", map_location=self.device, weights_only=True))
+        self.pm.load_state_dict(torch.load(ckpt_dir / "portfolio_manager.pt", map_location=self.device, weights_only=True))
+        self.trader.load_state_dict(torch.load(ckpt_dir / "trader.pt", map_location=self.device, weights_only=True))
+        print(f"Loaded checkpoint from {ckpt_dir}")
+
     def _save_metrics(self):
         """Save training metrics to JSON."""
         serialized = {}
@@ -581,6 +592,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--output-dir", type=str, default="outputs/ppo_training")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--resume-from", type=str, default=None, help="Path to checkpoint dir to resume from")
     args = parser.parse_args()
 
     device = args.device
@@ -593,4 +605,8 @@ if __name__ == "__main__":
         seed=args.seed,
         device=device,
     )
+    if args.resume_from:
+        trainer.load_checkpoint(args.resume_from)
+        
     trainer.train(total_episodes=args.episodes)
+ 
