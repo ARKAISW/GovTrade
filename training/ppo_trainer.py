@@ -249,7 +249,7 @@ class MultiAgentPPOTrainer:
         lr_pm: float = 3e-4,
         lr_trader: float = 3e-4,
         # Alternating
-        alt_frequency: int = 50,
+        phase_length: int = 50,
         # Curriculum
         curriculum: Optional[List[Tuple[int, int, str]]] = None,
         # Output
@@ -270,7 +270,7 @@ class MultiAgentPPOTrainer:
         self.max_grad_norm = max_grad_norm
         self.ppo_epochs = ppo_epochs
         self.minibatch_size = minibatch_size
-        self.alt_frequency = alt_frequency
+        self.phase_length = phase_length
         self.save_every = save_every
         self.log_every = log_every
         self.seed = seed
@@ -610,6 +610,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="QuantHive Multi-Agent PPO Training")
     parser.add_argument("--episodes", type=int, default=1500)
     parser.add_argument("--max-steps", type=int, default=500)
+    parser.add_argument("--phase-length", type=int, default=50, help="Episodes per optimization phase")
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--output-dir", type=str, default="outputs/ppo_training")
     parser.add_argument("--seed", type=int, default=42)
@@ -622,6 +623,7 @@ if __name__ == "__main__":
 
     trainer = MultiAgentPPOTrainer(
         max_steps=args.max_steps,
+        phase_length=args.phase_length,
         output_dir=args.output_dir,
         seed=args.seed,
         device=device,
