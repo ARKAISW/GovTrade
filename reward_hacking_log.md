@@ -53,3 +53,13 @@ This document chronicles the specific infrastructure bugs and emergent reward-ha
 * **Mechanism:** The environment baseline enforced an auto Stop-Loss (SL) if the Trader provided none (`sl <= 0`). The Trader provided fake, technically positive prices like `0.00000001` to bypass the auto-SL gate.
 * **Result:** The Trader took unhedged directional bets without triggering any governance penalties.
 * **Resolution:** Added bound validation that clamps the SL to 2% and penalizes the agent if the provided SL is >50% away from the current price.
+
+### 11. The "Do-Nothing" Reward Hack (Neutral State Bias)
+* **Mechanism:** The Portfolio Manager (PM) and Risk Manager (RM) rewards were loosely centered around a "grade" of 0.5. Since a completely inactive agent (no trades, low volatility) often achieves a baseline score close to this threshold through normalization, the agents learned that "total silence" was safer than risk-taking.
+* **Result:** Systematic "Lazy Equilibrium" where agents refused to allocate capital or adjust limits, effectively starving the Trader to avoid the shared downside penalty.
+* **Resolution:** Re-centered PM rewards at a 0.65 grade (the "Inactivity Floor") and amplified the gradient (`* 1.5`). The agents are now penalized for stagnation and must outperform a basic "sit-out" strategy to receive positive reinforcement.
+
+### 12. SL/TP Activity Evasion
+* **Mechanism:** The `consecutive_holds` counter and `traded` flags only tracked active *orders* from the Trader. If a trade was closed via an automated Stop-Loss (SL) or Take-Profit (TP) hit, it was not registered as "Activity".
+* **Result:** The Trader would enter a single position and let it ride until an SL hit, then sit inactive indefinitely without resetting the hold penalty, as the exit didn't count as a trade.
+* **Resolution:** Refactored `_check_sl_tp` to return a hit detection flag. The environment now treats an automated exit (SL/TP) as a valid market activity, resetting the `consecutive_holds` counter.
