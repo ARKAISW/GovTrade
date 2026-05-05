@@ -10,7 +10,7 @@ if str(ROOT) not in sys.path:
 
 from env.multi_agent_env import (
     MultiAgentTradingEnv, RISK_MANAGER, PORTFOLIO_MGR, TRADER, ALL_AGENTS,
-    BASE_OBS_SIZE, RM_MSG_SIZE, PM_MSG_SIZE,
+    BASE_OBS_SIZE, RM_MSG_SIZE, PM_MSG_SIZE, MIN_TRADE_SIZE,
 )
 
 
@@ -125,6 +125,59 @@ class TestStepMechanics:
         info = env.infos.get(TRADER, {})
         gov = info.get("governance", {})
         assert len(gov.get("interventions", [])) > 0, "RM should have intervened"
+
+
+class TestAntiRewardHacking:
+    def test_ticket_fee_bleeds_wash_trade(self):
+        env = MultiAgentTradingEnv(max_steps=10, seed=42, ticket_fee=5.0)
+        env.reset()
+        price = env._market.current_price()
+        initial_value = env._portfolio.total_value(price, env.ticker)
+
+        assert env._execute_trade(1, MIN_TRADE_SIZE, price * 0.98, price * 1.04, price)
+        assert env._execute_trade(2, 1.0, price * 0.98, price * 1.04, price)
+
+        final_value = env._portfolio.total_value(price, env.ticker)
+        assert final_value < initial_value - 10.0
+
+    def test_micro_trade_is_rejected_as_hold(self):
+        env = MultiAgentTradingEnv(max_steps=10, seed=42)
+        env.reset()
+
+        env.step(np.array([1.0, 1.0, 0.0], dtype=np.float32))
+        env.step(np.array([1.0, 0.0], dtype=np.float32))
+        env.step({
+            "direction": 1,
+            "size": np.array([MIN_TRADE_SIZE / 2], dtype=np.float32),
+            "sl": np.array([0.0], dtype=np.float32),
+            "tp": np.array([0.0], dtype=np.float32),
+        })
+
+        gov = env.infos[TRADER]["governance"]
+        intervention_types = {item["type"] for item in gov["interventions"]}
+        assert "min_trade_size" in intervention_types
+        assert gov["executed"]["direction"] == 0
+        assert env._trades_executed == 0
+        assert env._consecutive_holds == 1
+
+    def test_spoofed_stop_loss_is_clamped(self):
+        env = MultiAgentTradingEnv(max_steps=10, seed=42)
+        env.reset()
+        price = env._market.current_price()
+
+        env.step(np.array([1.0, 1.0, 0.0], dtype=np.float32))
+        env.step(np.array([1.0, 0.0], dtype=np.float32))
+        env.step({
+            "direction": 1,
+            "size": np.array([0.05], dtype=np.float32),
+            "sl": np.array([0.0001], dtype=np.float32),
+            "tp": np.array([0.0], dtype=np.float32),
+        })
+
+        gov = env.infos[TRADER]["governance"]
+        auto_sl = [item for item in gov["interventions"] if item["type"] == "auto_sl"]
+        assert auto_sl
+        assert gov["executed"]["sl"] == pytest.approx(price * 0.98)
 
 
 class TestTermination:

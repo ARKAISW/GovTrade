@@ -435,6 +435,14 @@ class SimulationRunner:
             "governance_log":  env_state.get("governance_log", []),
         }
 
+        normalized_sharpe = float(np.clip((env_state["sharpe_ratio"] + 2.0) / 4.0, 0.0, 1.0))
+        self.info = {
+            **trader_info,
+            "positions": env_state["positions"],
+            "normalized_sharpe": normalized_sharpe,
+            "grade": trader_info.get("grade", 0.0),
+        }
+
 
 runner = None
 

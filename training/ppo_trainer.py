@@ -434,19 +434,12 @@ class MultiAgentPPOTrainer:
             # Collect episode
             buffers, gov_metrics, failure_tax, info = self._collect_episode(env)
 
-            # Determine which agent to optimize this episode
-            cycle_pos = ep % (3 * self.alt_frequency)
-            if cycle_pos < self.alt_frequency:
-                opt_agent = TRADER
-            elif cycle_pos < 2 * self.alt_frequency:
-                opt_agent = RISK_MANAGER
-            else:
-                opt_agent = PORTFOLIO_MGR
-
-            # PPO update for the target agent
+            # PPO update for all agents simultaneously
+            opt_agent = "JOINT_TRAINING"
             train_metrics = {}
-            if opt_agent == RISK_MANAGER and len(buffers[RISK_MANAGER]) > 0:
-                train_metrics = ppo_update(
+            
+            if len(buffers[RISK_MANAGER]) > 0:
+                rm_metrics = ppo_update(
                     self.rm.network, self.opt_rm, buffers[RISK_MANAGER],
                     clip_epsilon=self.clip_epsilon,
                     entropy_coeff=self.entropy_coeff,
@@ -457,8 +450,10 @@ class MultiAgentPPOTrainer:
                     agent_type="continuous",
                     device=self.device,
                 )
-            elif opt_agent == PORTFOLIO_MGR and len(buffers[PORTFOLIO_MGR]) > 0:
-                train_metrics = ppo_update(
+                for k, v in rm_metrics.items(): train_metrics[f"rm_{k}"] = v
+                
+            if len(buffers[PORTFOLIO_MGR]) > 0:
+                pm_metrics = ppo_update(
                     self.pm.network, self.opt_pm, buffers[PORTFOLIO_MGR],
                     clip_epsilon=self.clip_epsilon,
                     entropy_coeff=self.entropy_coeff,
@@ -469,8 +464,10 @@ class MultiAgentPPOTrainer:
                     agent_type="continuous",
                     device=self.device,
                 )
-            elif opt_agent == TRADER and len(buffers[TRADER]) > 0:
-                train_metrics = ppo_update(
+                for k, v in pm_metrics.items(): train_metrics[f"pm_{k}"] = v
+                
+            if len(buffers[TRADER]) > 0:
+                trader_metrics = ppo_update(
                     self.trader.network, self.opt_trader, buffers[TRADER],
                     clip_epsilon=self.clip_epsilon,
                     entropy_coeff=self.entropy_coeff,
@@ -481,6 +478,7 @@ class MultiAgentPPOTrainer:
                     agent_type="mixed",
                     device=self.device,
                 )
+                for k, v in trader_metrics.items(): train_metrics[f"trader_{k}"] = v
 
             # Anneal entropy coefficient
             self.entropy_coeff *= self.entropy_decay

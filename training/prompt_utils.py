@@ -10,7 +10,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from env.multi_agent_env import (
+    BASE_OBS_SIZE,
     MultiAgentTradingEnv,
+    PM_MSG_SIZE,
+    RM_MSG_SIZE,
     RISK_MANAGER,
     PORTFOLIO_MGR,
     TRADER,
@@ -30,9 +33,8 @@ CRITICAL: You MUST comply with the Risk Manager's size limit. Exceeding it trigg
 
 Respond exactly in this format:
 <thought>
-Analyze the market conditions, explain how governance constraints affect your decision,
-and justify your trade. Reference specific indicators (RSI, MACD, drawdown, etc.)
-and the Risk Manager's limits in your reasoning. Minimum 150 characters.
+Briefly analyze the market conditions, explain how governance constraints affect your decision,
+and justify your trade. Use a non-empty thought without filler.
 </thought>
 <action>
 {"direction": 0, "size": 0.0, "sl": 0, "tp": 0}
@@ -148,11 +150,12 @@ def generate_pz_scenarios(
 
             elif agent == TRADER:
                 obs = env.observe(agent)
-                # Extract RM and PM messages from the observation
-                # obs layout: base(24) + rm_msg(3) + pm_msg(2) = 29
-                base_obs = obs[:24].tolist()
-                rm_msg = obs[24:27].tolist()  # [size_limit, allow_new, force_reduce]
-                pm_msg = obs[27:29].tolist()  # [cap_alloc, override_strength]
+                # Extract RM and PM messages from the observation.
+                base_obs = obs[:BASE_OBS_SIZE].tolist()
+                rm_start = BASE_OBS_SIZE
+                pm_start = BASE_OBS_SIZE + RM_MSG_SIZE
+                rm_msg = obs[rm_start:pm_start].tolist()
+                pm_msg = obs[pm_start:pm_start + PM_MSG_SIZE].tolist()
 
                 rm_size_limit = float(rm_msg[0])
                 rm_allow_new = bool(rm_msg[1] > 0.5)
@@ -163,8 +166,8 @@ def generate_pz_scenarios(
                 # Calculate future return using the environment's underlying dataframe
                 current_step = env._current_step
                 future_step = min(current_step + 5, len(env.df) - 1)
-                current_price = env.df[current_step] if current_step < len(env.df) else 1.0
-                future_price = env.df[future_step] if future_step < len(env.df) else current_price
+                current_price = float(env.df.iloc[current_step]["close"]) if current_step < len(env.df) else 1.0
+                future_price = float(env.df.iloc[future_step]["close"]) if future_step < len(env.df) else current_price
                 future_return = (future_price - current_price) / (current_price + 1e-10)
 
                 scenarios.append({

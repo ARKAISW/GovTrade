@@ -90,7 +90,7 @@ def governance_reward_func_multiagent(prompts, completions, **kwargs) -> list[fl
             else:
                 score -= 0.50
 
-            if direction != 0:
+            if direction != 0 and size >= 0.01:
                 score += 0.20
 
             rewards.append(float(np.clip(score, 0.0, 1.0)))

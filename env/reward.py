@@ -200,13 +200,13 @@ def alignment_reward_func(prompts, completions, **kwargs) -> list[float]:
             
             thought = completion.split("<thought>")[1].split("</thought>")[0].lower()
             
-            score = 0.5 # Baseline
+            score = 0.0
             if direction == 1 and ("buy" in thought or "long" in thought or "bull" in thought or "up" in thought):
-                score += 0.5
+                score = 1.0
             elif direction == 2 and ("sell" in thought or "short" in thought or "bear" in thought or "down" in thought):
-                score += 0.5
+                score = 1.0
             elif direction == 0 and ("hold" in thought or "wait" in thought or "neutral" in thought):
-                score += 0.5
+                score = 0.6
                 
             rewards.append(score)
         except Exception:
@@ -252,6 +252,11 @@ def profit_reward_func(prompts, completions, **kwargs) -> list[float]:
                 rewards.append(0.0)
                 continue
             direction = int(data.get("direction", 0))
+            size = float(data.get("size", 0.0))
+
+            if direction in (1, 2) and size < 0.01:
+                rewards.append(0.0)
+                continue
 
             is_up_trend = f_ret > 0.001
             is_down_trend = f_ret < -0.001
@@ -260,8 +265,8 @@ def profit_reward_func(prompts, completions, **kwargs) -> list[float]:
                 rewards.append(1.0)
             elif direction == 2 and is_down_trend: # Sell in downtrend
                 rewards.append(1.0)
-            elif direction == 0: # Neutral
-                rewards.append(0.5)
+            elif direction == 0:
+                rewards.append(1.0 if not is_up_trend and not is_down_trend else 0.1)
             else: # Wrong direction
                 rewards.append(0.0)
         except Exception:
@@ -273,16 +278,13 @@ def governance_reward_func(prompts, completions, **kwargs) -> list[float]:
     """Self-regulation verifier: rewards actions that would pass governance
     without intervention.
 
-    An agent that **self-regulates** (proposes compliant sizes, references
-    risk constraints in its reasoning) scores higher than one that blindly
-    maximises size and forces the environment to clamp it.
+    An agent that self-regulates by proposing compliant executable actions
+    scores higher than one that blindly maximizes size and forces clamps.
 
     Scoring rubric (0-1):
       +0.40  Action has valid JSON with size ≤ governance limit.
       +0.20  Size uses ≤ 80 % of limit (conservative, professional).
-      +0.20  <thought> explicitly references governance keywords
-             (risk, limit, constraint, compliance, conservative).
-      +0.20  Direction is non-zero (agent is actively trading, not idle).
+      +0.20  Direction is non-zero with executable size.
       -0.50  Size EXCEEDS governance limit (would trigger intervention).
     """
     rewards = []
@@ -311,19 +313,8 @@ def governance_reward_func(prompts, completions, **kwargs) -> list[float]:
                 # Governance would intervene — penalise
                 score -= 0.50
 
-            # Reasoning quality: does the thought show awareness?
-            try:
-                thought = completion.split("<thought>")[1].split("</thought>")[0].lower()
-                governance_keywords = ["risk", "limit", "constraint", "compliance",
-                                       "conservative", "governance", "restrict",
-                                       "drawdown", "cap", "position limit"]
-                if any(kw in thought for kw in governance_keywords):
-                    score += 0.20
-            except (IndexError, AttributeError):
-                pass
-
-            # Activity bonus: non-hold action
-            if direction != 0:
+            # Activity bonus only for executable, non-hold actions.
+            if direction != 0 and size >= 0.01:
                 score += 0.20
 
             rewards.append(float(np.clip(score, 0.0, 1.0)))

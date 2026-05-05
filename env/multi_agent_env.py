@@ -43,6 +43,8 @@ RISK_MANAGER    = "risk_manager_0"
 PORTFOLIO_MGR   = "portfolio_manager_0"
 TRADER          = "trader_0"
 ALL_AGENTS      = [RISK_MANAGER, PORTFOLIO_MGR, TRADER]
+MIN_TRADE_SIZE = 0.01
+DEFAULT_TICKET_FEE = 5.0
 
 # ─── Observation Sizes ──────────────────────────────────────────────────────────
 # Base market+portfolio+risk obs size: 14 + 5 + 5 = 24
@@ -83,6 +85,7 @@ class MultiAgentTradingEnv(AECEnv):
         initial_cash: float = 100_000.0,
         ticker: str = "default",
         commission: float = 0.001,
+        ticket_fee: float = DEFAULT_TICKET_FEE,
         max_steps: Optional[int] = None,
         difficulty: str = "hard",
         seed: Optional[int] = None,
@@ -108,6 +111,7 @@ class MultiAgentTradingEnv(AECEnv):
         self.ticker = ticker
         self.initial_cash = initial_cash
         self.commission = commission
+        self.ticket_fee = float(ticket_fee)
         self.max_steps = max_steps or (len(self.df) - 1)
         self._current_regime_label = self._regime_labels[0] if self._regime_labels else ""
 
@@ -230,10 +234,9 @@ class MultiAgentTradingEnv(AECEnv):
         Risk Manager decides governance constraints.
         action = [size_limit (0-1), allow_new_positions (0-1), force_reduce (0-1)]
 
-        Reward logic (adversarial):
-          +0.2  for restricting a dangerous action (high drawdown → low size_limit)
-          -0.3  for each $ portfolio value LOST since it last acted (it shares downside pain)
-          +0.05 for being compliant (not overriding a healthy portfolio)
+        Reward logic:
+          -0.20 for failing to restrict size during material drawdown
+          shared downside pain when portfolio value falls
         """
         size_limit, allow_new_raw, force_reduce_raw = float(action[0]), float(action[1]), float(action[2])
         allow_new  = allow_new_raw  > 0.5
@@ -248,12 +251,9 @@ class MultiAgentTradingEnv(AECEnv):
         drawdown = self._risk.current_drawdown
         rm_reward = 0.0
 
-        # Penalize for allowing reckless sizing when at risk
-        if drawdown > 0.15 and size_limit > 0.70:
-            rm_reward -= 0.20   # RM being reckless during drawdown
-            
+        # Penalty-only drawdown response: never reward the RM for a crisis existing.
         if drawdown > 0.10 and size_limit > 0.30:
-            rm_reward -= 0.15   # RM failed to restrict size during drawdown
+            rm_reward -= 0.20
 
         # Shared downside: RM suffers when portfolio loses money this step
         prev_val = self._prev_portfolio_value
@@ -354,21 +354,37 @@ class MultiAgentTradingEnv(AECEnv):
             direction = 0
 
         # ── Auto SL/TP (governance baseline) ───────────────────────────────
+        if direction != 0 and size < MIN_TRADE_SIZE:
+            interventions.append({
+                "agent": "Environment",
+                "type": "min_trade_size",
+                "original_size": size,
+                "minimum_size": MIN_TRADE_SIZE,
+                "reason": "Trade rejected as below the execution threshold",
+            })
+            direction = 0
+            size = 0.0
+
         current_price = self._market.current_price()
         DEFAULT_SL = 0.02
-        # Check if SL is missing OR if the Trader passed a spoofed SL (e.g., 0.0001) that is >50% away from current price
-        is_spoofed_sl = False
-        if direction == 1 and (sl_input <= 0 or sl_input < current_price * 0.5):
-            is_spoofed_sl = True
-        elif direction == 2 and (sl_input <= 0 or sl_input > current_price * 1.5):
-            is_spoofed_sl = True
+        invalid_sl = False
+        if direction == 1:
+            invalid_sl = sl_input <= 0 or sl_input >= current_price or sl_input < current_price * 0.5
+        elif direction == 2:
+            invalid_sl = sl_input <= 0 or sl_input <= current_price or sl_input > current_price * 1.5
             
-        if direction != 0 and is_spoofed_sl:
+        if direction != 0 and invalid_sl:
+            original_sl = sl_input
             if direction == 1:
                 sl_input = current_price * (1 - DEFAULT_SL)
             else:
                 sl_input = current_price * (1 + DEFAULT_SL)
-            interventions.append({"agent": "RiskManager", "type": "auto_sl"})
+            interventions.append({
+                "agent": "RiskManager",
+                "type": "auto_sl",
+                "original_sl": original_sl,
+                "enforced_sl": sl_input,
+            })
             
         if direction != 0 and tp_input <= 0 and sl_input > 0:
             sl_dist = abs(current_price - sl_input)
@@ -452,9 +468,8 @@ class MultiAgentTradingEnv(AECEnv):
         # LAYER 1: Progressive Consecutive Hold Penalty
         # ═══════════════════════════════════════════════════════════════════
         # Escalates the longer the agent refuses to trade.
-        # 1 hold = -0.05, 5 holds = -0.25, 10+ holds = -0.50 (capped)
-        # Resets to 0 when a trade is executed.
-        progressive_hold_cost = 0.05 * min(self._consecutive_holds, 10) if direction == 0 else 0.0
+        # Max penalty is 0.05, significantly reduced so the agent isn't forced to take bad trades just to reset the counter.
+        progressive_hold_cost = 0.005 * min(self._consecutive_holds, 10) if not traded else 0.0
 
         # ═══════════════════════════════════════════════════════════════════
         # LAYER 2: Continuous Governance Penalties (no binary thresholds)
@@ -464,14 +479,14 @@ class MultiAgentTradingEnv(AECEnv):
         current_dd = float(self._risk.current_drawdown)
 
         # PM: penalize low capital allocation continuously
-        # Full penalty at 0%, zero penalty at 30%+
-        utilization_penalty = max(0.0, 0.30 - cap_alloc) * 0.5
+        # Full penalty at 0%, zero penalty at 10%+
+        utilization_penalty = max(0.0, 0.10 - cap_alloc) * 0.5
 
         # RM: penalize overly tight size limits ONLY when market is calm
         # During real drawdowns (>10%), restricting is correct behavior
         rm_restrict_penalty = 0.0
         if current_dd < 0.10:
-            rm_restrict_penalty = max(0.0, 0.30 - size_limit) * 0.3
+            rm_restrict_penalty = max(0.0, 0.10 - size_limit) * 0.3
 
         continuous_gov_penalty = utilization_penalty + rm_restrict_penalty
 
@@ -495,12 +510,10 @@ class MultiAgentTradingEnv(AECEnv):
         # ── PM reward: grade-based portfolio performance ────────────────────
         normalized_profit  = float(np.clip((profit + 1.0) / 2.0, 0.0, 1.0))
         normalized_sharpe  = float(np.clip((self._risk.sharpe_ratio() + 2.0) / 4.0, 0.0, 1.0))
-        consistency = float(np.mean(np.diff(np.array(self._episode_values)) > 0)) if len(self._episode_values) > 2 else 0.5
         grade = float(compute_grade({
             "profit": normalized_profit,
             "sharpe": normalized_sharpe,
             "drawdown": float(self._risk.max_drawdown),
-            "consistency": consistency,
         }))
         pm_reward = (grade - 0.5) * 0.4   # Grade in [0,1] → centered reward
         if self._risk.max_drawdown > 0.20:
@@ -566,7 +579,6 @@ class MultiAgentTradingEnv(AECEnv):
 
         self._prev_portfolio_value = new_value
         self._pending_trade = None
-        self._rm_cycle_reward = 0.0
         self._rm_cycle_reward = 0.0
 
     # ───────────────────────────────────────────────────────────────────────────
@@ -636,8 +648,6 @@ class MultiAgentTradingEnv(AECEnv):
         if direction == 0 or size <= 0:
             return False
 
-        # Enforce minimum trade size (1% of portfolio) to prevent micro-trade loophole
-        MIN_TRADE_SIZE = 0.01
         if size < MIN_TRADE_SIZE:
             return False  # Trade rejected as noise; counts as a Hold
 
@@ -648,7 +658,7 @@ class MultiAgentTradingEnv(AECEnv):
             if pos < 0:
                 # Cover short
                 abs_qty = abs(pos)
-                cover_cost = abs_qty * current_price * (1 + self.commission)
+                cover_cost = abs_qty * current_price * (1 + self.commission) + self.ticket_fee
                 margin_return = abs_qty * self._portfolio.avg_costs.get(self.ticker, current_price)
                 self._portfolio.cash += margin_return - cover_cost
                 self._portfolio.positions[self.ticker] = 0.0
@@ -657,9 +667,12 @@ class MultiAgentTradingEnv(AECEnv):
                 self._portfolio.take_profits[self.ticker] = None
                 traded = True
             else:
-                trade_qty = (self._portfolio.cash * size) / (current_price * (1 + self.commission) + 1e-10)
+                budget = self._portfolio.cash * size
+                if budget <= self.ticket_fee:
+                    return False
+                trade_qty = (budget - self.ticket_fee) / (current_price * (1 + self.commission) + 1e-10)
                 if trade_qty > 1e-8:
-                    cost = trade_qty * current_price * (1 + self.commission) + 5.0 # Add $5 ticket fee to punish wash trading
+                    cost = trade_qty * current_price * (1 + self.commission) + self.ticket_fee
                     self._portfolio.cash -= cost
                     prev_qty = pos
                     prev_avg  = self._portfolio.avg_costs.get(self.ticker, 0.0)
@@ -676,7 +689,7 @@ class MultiAgentTradingEnv(AECEnv):
             if pos > 0:
                 sell_qty = min(pos, pos * size)
                 if sell_qty > 1e-8:
-                    revenue = sell_qty * current_price * (1 - self.commission)
+                    revenue = sell_qty * current_price * (1 - self.commission) - self.ticket_fee
                     self._portfolio.cash += revenue
                     remaining = pos - sell_qty
                     self._portfolio.positions[self.ticker] = max(remaining, 0.0)
@@ -687,9 +700,11 @@ class MultiAgentTradingEnv(AECEnv):
                     traded = True
             else:
                 margin = self._portfolio.cash * size
-                short_qty = margin / (current_price * (1 + self.commission) + 1e-10)
+                if margin <= self.ticket_fee:
+                    return False
+                short_qty = (margin - self.ticket_fee) / (current_price * (1 + self.commission) + 1e-10)
                 if short_qty > 1e-8:
-                    self._portfolio.cash -= (short_qty * current_price + 5.0) # Add $5 ticket fee
+                    self._portfolio.cash -= (short_qty * current_price * (1 + self.commission) + self.ticket_fee)
                     prev_qty  = abs(pos)
                     prev_avg  = self._portfolio.avg_costs.get(self.ticker, 0.0)
                     new_qty   = prev_qty + short_qty
@@ -718,7 +733,7 @@ class MultiAgentTradingEnv(AECEnv):
             if sl and current_price <= sl: hit = True
             if tp and current_price >= tp: hit = True
             if hit:
-                revenue = pos_qty * current_price * (1 - self.commission)
+                revenue = pos_qty * current_price * (1 - self.commission) - self.ticket_fee
                 self._portfolio.cash += revenue
                 self._portfolio.positions[ticker] = 0.0
                 self._portfolio.avg_costs[ticker] = 0.0
@@ -731,7 +746,7 @@ class MultiAgentTradingEnv(AECEnv):
             if tp and current_price <= tp: hit = True
             if hit:
                 avg_cost   = self._portfolio.avg_costs.get(ticker, current_price)
-                cover_cost = abs_qty * current_price * (1 + self.commission)
+                cover_cost = abs_qty * current_price * (1 + self.commission) + self.ticket_fee
                 margin_ret = abs_qty * avg_cost
                 self._portfolio.cash += margin_ret - cover_cost
                 self._portfolio.positions[ticker] = 0.0
