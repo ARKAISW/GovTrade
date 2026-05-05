@@ -175,7 +175,7 @@ def main():
     scenarios = generate_pz_scenarios(n=args.num_scenarios, difficulty=args.difficulty)
     print(f"  Generated {len(scenarios)} scenarios.")
 
-    prompts = [{"prompt": build_prompt_multiagent(sc)} for sc in scenarios]
+    prompts = [{"prompt": build_prompt_multiagent(sc), "future_return": sc.get("future_return", 0.0)} for sc in scenarios]
     dataset = Dataset.from_list(prompts)
 
     torch_module = require_cuda()

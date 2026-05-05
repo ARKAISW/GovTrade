@@ -114,21 +114,18 @@ def compute_grade(metrics: Dict[str, float]) -> float:
 
     grade = 0.4 * normalized_profit
           + 0.3 * normalized_sharpe
-          + 0.2 * (1 - normalized_drawdown)
-          + 0.1 * consistency
+          + 0.3 * (1 - normalized_drawdown)
 
     All input metrics must already be in [0, 1].
     """
     profit = np.clip(metrics.get("profit", 0.0), 0.0, 1.0)
     sharpe = np.clip(metrics.get("sharpe", 0.0), 0.0, 1.0)
     drawdown = np.clip(metrics.get("drawdown", 0.0), 0.0, 1.0)
-    consistency = np.clip(metrics.get("consistency", 0.0), 0.0, 1.0)
 
     grade = (
         0.4 * profit
         + 0.3 * sharpe
-        + 0.2 * (1.0 - drawdown)
-        + 0.1 * consistency
+        + 0.3 * (1.0 - drawdown)
     )
     return float(np.clip(grade, 0.0, 1.0))
 
@@ -178,7 +175,7 @@ def format_reward_func(prompts, completions, **kwargs) -> list[float]:
                 continue
             
             thought = completion.split("<thought>")[1].split("</thought>")[0].strip()
-            if len(thought) < 150:
+            if len(thought) < 10:
                 rewards.append(0.2) 
                 continue
 
@@ -192,22 +189,23 @@ def format_reward_func(prompts, completions, **kwargs) -> list[float]:
 
 def alignment_reward_func(prompts, completions, **kwargs) -> list[float]:
     """
-    Ensures the <thought> matches the signals in the <prompt>.
-    This is the 'Anti-Hallucination' reward.
+    Ensures the <thought> matches the generated <action>.
+    This enforces internal reasoning consistency.
     """
     rewards = []
-    for prompt, completion in zip(prompts, completions):
+    for completion in completions:
         try:
-            ta_signal = _extract_signal_value(prompt, "ta")
-            is_bullish = ta_signal is not None and ta_signal > 0.2
-            is_bearish = ta_signal is not None and ta_signal < -0.2
+            data = _extract_json_action(completion)
+            direction = int(data.get("direction", 0)) if data else 0
             
             thought = completion.split("<thought>")[1].split("</thought>")[0].lower()
             
             score = 0.5 # Baseline
-            if is_bullish and ("bullish" in thought or "upward" in thought or "buy" in thought):
+            if direction == 1 and ("buy" in thought or "long" in thought or "bull" in thought or "up" in thought):
                 score += 0.5
-            elif is_bearish and ("bearish" in thought or "downward" in thought or "sell" in thought):
+            elif direction == 2 and ("sell" in thought or "short" in thought or "bear" in thought or "down" in thought):
+                score += 0.5
+            elif direction == 0 and ("hold" in thought or "wait" in thought or "neutral" in thought):
                 score += 0.5
                 
             rewards.append(score)
@@ -232,12 +230,6 @@ def risk_reward_func(prompts, completions, **kwargs) -> list[float]:
                 
                 # Reward 1: Under limit
                 score = 0.7 if size <= limit else 0.0
-                
-                # Reward 2: Logic check (Mentioning 'risk' or 'limit' in thoughts)
-                thought = completion.split("<thought>")[1].split("</thought>")[0].lower()
-                if "risk" in thought or "limit" in thought or "constraint" in thought:
-                    score += 0.3
-                    
                 rewards.append(score)
             else:
                 rewards.append(0.0)
@@ -248,10 +240,12 @@ def risk_reward_func(prompts, completions, **kwargs) -> list[float]:
 def profit_reward_func(prompts, completions, **kwargs) -> list[float]:
     """
     Simulated PnL: Checks if the action (direction) matches the actual
-    future price trend provided in the hidden 'scenario_result' metadata.
+    future price trend provided in the hidden 'future_return' dataset column.
     """
     rewards = []
-    for prompt, completion in zip(prompts, completions):
+    future_returns = kwargs.get("future_return", [0.0] * len(prompts))
+    
+    for prompt, completion, f_ret in zip(prompts, completions, future_returns):
         try:
             data = _extract_json_action(completion)
             if data is None:
@@ -259,16 +253,12 @@ def profit_reward_func(prompts, completions, **kwargs) -> list[float]:
                 continue
             direction = int(data.get("direction", 0))
 
-            prices = _extract_prompt_state(prompt)
-            if not prices or len(prices) < 2:
-                rewards.append(0.0)
-                continue
-
-            is_up_trend = prices[-1] > prices[0]
+            is_up_trend = f_ret > 0.001
+            is_down_trend = f_ret < -0.001
             
             if direction == 1 and is_up_trend: # Buy in uptrend
                 rewards.append(1.0)
-            elif direction == 2 and not is_up_trend: # Sell in downtrend
+            elif direction == 2 and is_down_trend: # Sell in downtrend
                 rewards.append(1.0)
             elif direction == 0: # Neutral
                 rewards.append(0.5)

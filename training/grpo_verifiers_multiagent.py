@@ -52,13 +52,6 @@ def risk_reward_func_multiagent(prompts, completions, **kwargs) -> list[float]:
             size = float(data.get("size", 0.0))
             score = 0.7 if size <= limit else 0.0
 
-            try:
-                thought = completion.split("<thought>")[1].split("</thought>")[0].lower()
-                if any(kw in thought for kw in ["risk", "limit", "constraint", "size_limit"]):
-                    score += 0.3
-            except (IndexError, AttributeError):
-                pass
-
             rewards.append(score)
         except Exception:
             rewards.append(0.0)
@@ -96,29 +89,6 @@ def governance_reward_func_multiagent(prompts, completions, **kwargs) -> list[fl
                     score += 0.20
             else:
                 score -= 0.50
-
-            try:
-                thought = completion.split("<thought>")[1].split("</thought>")[0].lower()
-                governance_keywords = [
-                    "risk",
-                    "limit",
-                    "constraint",
-                    "compliance",
-                    "conservative",
-                    "governance",
-                    "restrict",
-                    "drawdown",
-                    "cap",
-                    "position limit",
-                    "size_limit",
-                    "risk manager",
-                    "portfolio manager",
-                    "allocation",
-                ]
-                if any(kw in thought for kw in governance_keywords):
-                    score += 0.20
-            except (IndexError, AttributeError):
-                pass
 
             if direction != 0:
                 score += 0.20

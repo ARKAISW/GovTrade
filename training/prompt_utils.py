@@ -160,6 +160,13 @@ def generate_pz_scenarios(
                 pm_cap_alloc = float(pm_msg[0])
                 pm_override = float(pm_msg[1])
 
+                # Calculate future return using the environment's underlying dataframe
+                current_step = env._current_step
+                future_step = min(current_step + 5, len(env.df) - 1)
+                current_price = env.df[current_step] if current_step < len(env.df) else 1.0
+                future_price = env.df[future_step] if future_step < len(env.df) else current_price
+                future_return = (future_price - current_price) / (current_price + 1e-10)
+
                 scenarios.append({
                     "state": [round(float(x), 4) for x in base_obs[:5]],
                     "full_obs": [round(float(x), 4) for x in base_obs],
@@ -174,6 +181,7 @@ def generate_pz_scenarios(
                         "position_limit": round(rm_size_limit, 3),
                         "rm_size_limit": round(rm_size_limit, 3),
                     },
+                    "future_return": float(future_return),
                 })
 
                 if len(scenarios) >= n:

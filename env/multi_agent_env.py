@@ -248,16 +248,12 @@ class MultiAgentTradingEnv(AECEnv):
         drawdown = self._risk.current_drawdown
         rm_reward = 0.0
 
-        # Rewarded for restricting size when portfolio is underwater
-        if drawdown > 0.10 and size_limit < 0.30:
-            rm_reward += 0.20   # RM correctly capped risk during drawdown
-
-        if force_reduce and drawdown > 0.20:
-            rm_reward += 0.15   # Correct force-reduce under severe drawdown
-
         # Penalize for allowing reckless sizing when at risk
         if drawdown > 0.15 and size_limit > 0.70:
             rm_reward -= 0.20   # RM being reckless during drawdown
+            
+        if drawdown > 0.10 and size_limit > 0.30:
+            rm_reward -= 0.15   # RM failed to restrict size during drawdown
 
         # Shared downside: RM suffers when portfolio loses money this step
         prev_val = self._prev_portfolio_value
@@ -360,12 +356,20 @@ class MultiAgentTradingEnv(AECEnv):
         # ── Auto SL/TP (governance baseline) ───────────────────────────────
         current_price = self._market.current_price()
         DEFAULT_SL = 0.02
-        if direction != 0 and sl_input <= 0:
+        # Check if SL is missing OR if the Trader passed a spoofed SL (e.g., 0.0001) that is >50% away from current price
+        is_spoofed_sl = False
+        if direction == 1 and (sl_input <= 0 or sl_input < current_price * 0.5):
+            is_spoofed_sl = True
+        elif direction == 2 and (sl_input <= 0 or sl_input > current_price * 1.5):
+            is_spoofed_sl = True
+            
+        if direction != 0 and is_spoofed_sl:
             if direction == 1:
                 sl_input = current_price * (1 - DEFAULT_SL)
             else:
                 sl_input = current_price * (1 + DEFAULT_SL)
             interventions.append({"agent": "RiskManager", "type": "auto_sl"})
+            
         if direction != 0 and tp_input <= 0 and sl_input > 0:
             sl_dist = abs(current_price - sl_input)
             tp_input = (current_price + sl_dist * 2.0) if direction == 1 else (current_price - sl_dist * 2.0)
@@ -655,7 +659,7 @@ class MultiAgentTradingEnv(AECEnv):
             else:
                 trade_qty = (self._portfolio.cash * size) / (current_price * (1 + self.commission) + 1e-10)
                 if trade_qty > 1e-8:
-                    cost = trade_qty * current_price * (1 + self.commission)
+                    cost = trade_qty * current_price * (1 + self.commission) + 5.0 # Add $5 ticket fee to punish wash trading
                     self._portfolio.cash -= cost
                     prev_qty = pos
                     prev_avg  = self._portfolio.avg_costs.get(self.ticker, 0.0)
@@ -685,7 +689,7 @@ class MultiAgentTradingEnv(AECEnv):
                 margin = self._portfolio.cash * size
                 short_qty = margin / (current_price * (1 + self.commission) + 1e-10)
                 if short_qty > 1e-8:
-                    self._portfolio.cash -= short_qty * current_price
+                    self._portfolio.cash -= (short_qty * current_price + 5.0) # Add $5 ticket fee
                     prev_qty  = abs(pos)
                     prev_avg  = self._portfolio.avg_costs.get(self.ticker, 0.0)
                     new_qty   = prev_qty + short_qty
