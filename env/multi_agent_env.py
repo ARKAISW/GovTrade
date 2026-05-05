@@ -627,10 +627,16 @@ class MultiAgentTradingEnv(AECEnv):
         for ag in self.agents:
             self._cumulative_rewards[ag] += self.rewards[ag]
 
-    def _execute_trade(
-        self, direction: int, size: float, sl: float, tp: float, current_price: float
-    ) -> bool:
-        """Execute trade on portfolio state. Returns True if a trade was made."""
+    def _execute_trade(self, direction: int, size: float, sl: float, tp: float, current_price: float) -> bool:
+        """Execute trade, applying commissions and updating portfolio. Return True if trade executed."""
+        if direction == 0 or size <= 0:
+            return False
+
+        # Enforce minimum trade size (1% of portfolio) to prevent micro-trade loophole
+        MIN_TRADE_SIZE = 0.01
+        if size < MIN_TRADE_SIZE:
+            return False  # Trade rejected as noise; counts as a Hold
+
         traded = False
 
         if direction == 1:  # BUY / Cover Short
