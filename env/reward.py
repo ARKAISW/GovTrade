@@ -166,7 +166,7 @@ def _extract_signal_value(prompt: str, key: str):
 # ──────────────────────────────────────────────
 
 def format_reward_func(prompts, completions, **kwargs) -> list[float]:
-    """Strict format and reasoning length check."""
+    """Strict format check. Removed padding threshold to prevent Sybil attacks."""
     rewards = []
     for completion in completions:
         try:
@@ -174,11 +174,6 @@ def format_reward_func(prompts, completions, **kwargs) -> list[float]:
                 rewards.append(0.0)
                 continue
             
-            thought = completion.split("<thought>")[1].split("</thought>")[0].strip()
-            if len(thought) < 10:
-                rewards.append(0.2) 
-                continue
-
             if _extract_json_action(completion) is not None:
                 rewards.append(1.0)
             else:

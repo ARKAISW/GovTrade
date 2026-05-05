@@ -19,6 +19,7 @@ dual REINFORCE + GRPO system that was flagged as a credibility issue.
 from __future__ import annotations
 
 import json
+import sys
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -29,6 +30,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
+# Allow running this file directly from notebooks/terminals without
+# requiring the caller to preconfigure PYTHONPATH.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from env.multi_agent_env import (
     MultiAgentTradingEnv,
@@ -294,11 +301,27 @@ class MultiAgentPPOTrainer:
         self.all_metrics: Dict[str, List] = defaultdict(list)
 
     def _get_difficulty(self, episode: int) -> str:
-        """Get the curriculum difficulty for this episode."""
-        for start, end, diff in self.curriculum:
-            if start <= episode < end:
-                return diff
-        return "hard"
+        """
+        Return the environment difficulty based on a non-linear, probabilistic curriculum.
+        
+        This prevents 'catastrophic forgetting' by maintaining a mix of
+        difficulties while gradually shifting the focus to harder regimes.
+        """
+        # Estimate total episodes from curriculum if possible, else default to 1500
+        total_eps = self.curriculum[-1][1] if self.curriculum else 1500
+        progress = episode / total_eps
+        
+        # Probabilities: [easy, medium, hard]
+        if progress < 0.2:
+            probs = [0.8, 0.15, 0.05]
+        elif progress < 0.5:
+            probs = [0.3, 0.5, 0.2]
+        elif progress < 0.8:
+            probs = [0.1, 0.3, 0.6]
+        else:
+            probs = [0.05, 0.15, 0.8]
+            
+        return np.random.choice(["easy", "medium", "hard"], p=probs)
 
     def _collect_episode(
         self, env: MultiAgentTradingEnv,
@@ -409,21 +432,29 @@ class MultiAgentPPOTrainer:
         return buffers, gov_metrics, failure_tax, final_info
 
     def train(self, total_episodes: int = 1500) -> Dict[str, List]:
-        """Run the full training loop."""
+        """Run the full training loop using Alternating Optimization."""
         np.random.seed(self.seed)
         torch.manual_seed(self.seed)
 
         print("=" * 70)
-        print("  QuantHive — Multi-Agent PPO Training")
+        print("  QuantHive — Multi-Agent PPO (Alternating Optimization)")
         print(f"  Episodes: {total_episodes}  |  Curriculum: {len(self.curriculum)} phases")
-        print(f"  Device: {self.device}  |  Seed: {self.seed}")
+        print(f"  Phase Length: {self.phase_length} eps | Device: {self.device}")
         print("=" * 70)
 
         best_gov_score = -np.inf
 
+        # Optimization phases: 0=Trader, 1=RiskManager, 2=PortfolioMgr
+        # This prevents the "Death Spiral" by providing a stable partner for learning.
+        ALL_PHASES = [TRADER, RISK_MANAGER, PORTFOLIO_MGR]
+
         for ep in range(total_episodes):
             t0 = time.time()
             difficulty = self._get_difficulty(ep)
+
+            # Determine which agent is being optimized this episode
+            phase_idx = (ep // self.phase_length) % len(ALL_PHASES)
+            opt_agent = ALL_PHASES[phase_idx]
 
             env = MultiAgentTradingEnv(
                 difficulty=difficulty,
@@ -434,11 +465,10 @@ class MultiAgentPPOTrainer:
             # Collect episode
             buffers, gov_metrics, failure_tax, info = self._collect_episode(env)
 
-            # PPO update for all agents simultaneously
-            opt_agent = "JOINT_TRAINING"
+            # PPO update ONLY for the currently optimized agent
             train_metrics = {}
-            
-            if len(buffers[RISK_MANAGER]) > 0:
+
+            if opt_agent == RISK_MANAGER and len(buffers[RISK_MANAGER]) > 0:
                 rm_metrics = ppo_update(
                     self.rm.network, self.opt_rm, buffers[RISK_MANAGER],
                     clip_epsilon=self.clip_epsilon,
@@ -451,8 +481,8 @@ class MultiAgentPPOTrainer:
                     device=self.device,
                 )
                 for k, v in rm_metrics.items(): train_metrics[f"rm_{k}"] = v
-                
-            if len(buffers[PORTFOLIO_MGR]) > 0:
+
+            elif opt_agent == PORTFOLIO_MGR and len(buffers[PORTFOLIO_MGR]) > 0:
                 pm_metrics = ppo_update(
                     self.pm.network, self.opt_pm, buffers[PORTFOLIO_MGR],
                     clip_epsilon=self.clip_epsilon,
@@ -465,8 +495,8 @@ class MultiAgentPPOTrainer:
                     device=self.device,
                 )
                 for k, v in pm_metrics.items(): train_metrics[f"pm_{k}"] = v
-                
-            if len(buffers[TRADER]) > 0:
+
+            elif opt_agent == TRADER and len(buffers[TRADER]) > 0:
                 trader_metrics = ppo_update(
                     self.trader.network, self.opt_trader, buffers[TRADER],
                     clip_epsilon=self.clip_epsilon,
@@ -486,7 +516,6 @@ class MultiAgentPPOTrainer:
             # Compute final governance metrics
             final_gov = gov_metrics.finalize()
             failure_summary = failure_tax.summary()
-
             # Log metrics
             self.all_metrics["episode"].append(ep)
             self.all_metrics["difficulty"].append(difficulty)

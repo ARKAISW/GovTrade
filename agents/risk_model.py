@@ -28,24 +28,17 @@ class RiskModeler:
         """
         Compute risk constraints and reasoning.
         """
-        # Market features
-        close_price = observation[3]  # un-normalized close is index 3 in market_vec
-        # Wait, check state.py indexing for MarketState.observation_vector()
-        # 0: open/close, 1: high/close, 2: low/close, 3: close/close=1.0
-        # Actually, state.py observation_vector() doesn't include raw price.
-        # I need to get it from the market_row if passed, or use the normalized version.
-        # But wait, observation[0:4] are price ratios. 
-        # I should probably have the environment pass the raw price in some other way 
-        # or include it in the observation.
-        
+        # Market features (from state.py)
+        # 13: ATR ratio
         atr_ratio = observation[13]
 
-        # Portfolio features (new 5-feature layout)
-        exposure_ratio = observation[15]  # long exposure
+        # Portfolio features (indices 14-18)
+        # 15: long exposure, 16: portfolio return, 18: short exposure
+        exposure_ratio = observation[15]
         portfolio_return = observation[16]
-        short_exposure = observation[18]  # short exposure
-
-        # Risk features (shifted by +1 due to short_exposure insertion)
+        
+        # Risk features (indices 19-23)
+        # 19: current drawdown, 22: volatility
         current_drawdown = observation[19]
         volatility = observation[22]
 
@@ -80,7 +73,7 @@ class RiskModeler:
             "suggested_sl_ratio": sl_distance_ratio,
             "allow_new_positions": current_drawdown < self.max_drawdown_limit,
             "force_reduce": current_drawdown > self.max_drawdown_limit * 0.9,
-            "raw_price": None, # Environment will fill this if needed, or we use a ratio
+            "raw_price": None, 
         }
 
         return position_limit, constraints, reasoning

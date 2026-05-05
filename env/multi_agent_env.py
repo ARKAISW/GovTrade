@@ -69,7 +69,7 @@ class MultiAgentTradingEnv(AECEnv):
 
     Actions:
       risk_manager_0:   Box(3,) — [size_limit, allow_new_positions, force_reduce] — continuous
-      portfolio_mgr_0:  Box(2,) — [capital_allocation_fraction, override_flag] — continuous
+      portfolio_mgr_0:  Box(2,) — [capital_allocation_fraction, override_strength] — continuous
       trader_0:         Dict — direction (Discrete 3), size (Box 1), sl (Box 1), tp (Box 1)
     """
 
@@ -184,10 +184,6 @@ class MultiAgentTradingEnv(AECEnv):
         # Reset its accumulation window before processing a fresh action.
         self._cumulative_rewards[agent] = 0.0
         self._clear_rewards()
-        # The current agent's cumulative reward was already returned by last().
-        # Reset its accumulation window before processing a fresh action.
-        self._cumulative_rewards[agent] = 0.0
-        self._clear_rewards()
 
         # ── Route action to the correct handler ────────────────────────────
         if agent == RISK_MANAGER:
@@ -235,8 +231,8 @@ class MultiAgentTradingEnv(AECEnv):
         action = [size_limit (0-1), allow_new_positions (0-1), force_reduce (0-1)]
 
         Reward logic:
-          -0.20 for failing to restrict size during material drawdown
-          shared downside pain when portfolio value falls
+          -0.40 for failing to restrict size during material drawdown
+          shared pain/gain with portfolio (biased towards protection)
         """
         size_limit, allow_new_raw, force_reduce_raw = float(action[0]), float(action[1]), float(action[2])
         allow_new  = allow_new_raw  > 0.5
@@ -253,17 +249,10 @@ class MultiAgentTradingEnv(AECEnv):
 
         # Penalty-only drawdown response: never reward the RM for a crisis existing.
         if drawdown > 0.10 and size_limit > 0.30:
-            rm_reward -= 0.20
+            rm_reward -= 0.40
 
-        # Shared downside: RM suffers when portfolio loses money this step
-        prev_val = self._prev_portfolio_value
-        curr_price = self._market.current_price()
-        curr_val   = self._portfolio.total_value(curr_price, self.ticker)
-        portfolio_delta_pct = (curr_val - prev_val) / (self.initial_cash + 1e-10)
-        rm_reward += min(portfolio_delta_pct * 0.5, 0.0)  # Only downside pain
-
-        # Defer emission until the Trader finishes the cycle so PettingZoo sees
-        # one reward publication per cycle.
+        # Note: shared upside/downside is now handled in _advance_market to ensure
+        # synchronized profit calculation across all agents.
         self._rm_cycle_reward = float(rm_reward)
 
     def _step_portfolio_manager(self, action: np.ndarray):
@@ -428,17 +417,18 @@ class MultiAgentTradingEnv(AECEnv):
         prev_value    = self._portfolio.total_value(current_price, self.ticker)
 
         # Check SL/TP before executing new action
-        self._check_sl_tp(current_price)
+        sl_tp_hit = self._check_sl_tp(current_price)
 
         # Execute trade in portfolio state
         traded = self._execute_trade(direction, size, sl_input, tp_input, current_price)
 
         # Track activity based on actual execution (closing the fake-trade loophole)
-        if not traded:
+        # Activity = entering a new trade OR having an SL/TP hit.
+        if not (traded or sl_tp_hit):
             self._consecutive_holds += 1
         else:
             self._consecutive_holds = 0
-            self._trades_executed += 1
+            if traded: self._trades_executed += 1
 
         # Advance market step
         self._current_step += 1
@@ -459,7 +449,7 @@ class MultiAgentTradingEnv(AECEnv):
             drawdown=self._risk.current_drawdown,
             volatility=self._risk.return_volatility(),
             sharpe=self._risk.sharpe_ratio(),
-            trade_count=int(traded),
+            trade_count=int(traded or sl_tp_hit),
             direction=direction,
             price_trend=price_trend,
         )
@@ -468,8 +458,7 @@ class MultiAgentTradingEnv(AECEnv):
         # LAYER 1: Progressive Consecutive Hold Penalty
         # ═══════════════════════════════════════════════════════════════════
         # Escalates the longer the agent refuses to trade.
-        # Max penalty is 0.05, significantly reduced so the agent isn't forced to take bad trades just to reset the counter.
-        progressive_hold_cost = 0.005 * min(self._consecutive_holds, 10) if not traded else 0.0
+        progressive_hold_cost = 0.01 * min(self._consecutive_holds, 20)
 
         # ═══════════════════════════════════════════════════════════════════
         # LAYER 2: Continuous Governance Penalties (no binary thresholds)
@@ -479,14 +468,14 @@ class MultiAgentTradingEnv(AECEnv):
         current_dd = float(self._risk.current_drawdown)
 
         # PM: penalize low capital allocation continuously
-        # Full penalty at 0%, zero penalty at 10%+
-        utilization_penalty = max(0.0, 0.10 - cap_alloc) * 0.5
+        # Full penalty at 0%, zero penalty at 20%+
+        utilization_penalty = max(0.0, 0.20 - cap_alloc) * 0.5
 
         # RM: penalize overly tight size limits ONLY when market is calm
         # During real drawdowns (>10%), restricting is correct behavior
         rm_restrict_penalty = 0.0
         if current_dd < 0.10:
-            rm_restrict_penalty = max(0.0, 0.10 - size_limit) * 0.3
+            rm_restrict_penalty = max(0.0, 0.20 - size_limit) * 0.5
 
         continuous_gov_penalty = utilization_penalty + rm_restrict_penalty
 
@@ -515,14 +504,20 @@ class MultiAgentTradingEnv(AECEnv):
             "sharpe": normalized_sharpe,
             "drawdown": float(self._risk.max_drawdown),
         }))
-        pm_reward = (grade - 0.5) * 0.4   # Grade in [0,1] → centered reward
+        # Center reward at grade 0.65 (the 'do nothing' grade) to avoid reward hacking.
+        pm_reward = (grade - 0.65) * 1.5
         if self._risk.max_drawdown > 0.20:
-            pm_reward -= 0.15              # PM penalized for deep drawdown
+            pm_reward -= 0.30              # PM heavily penalized for deep drawdown
         pm_reward -= utilization_penalty   # PM owns the capital allocation penalty
         self.rewards[PORTFOLIO_MGR] = float(pm_reward)
 
         # ── RM: shared downside with final portfolio value ──────────────────
-        rm_pain = min(profit * 0.5, 0.0)   # Only share downside
+        # RM shares 50% of downside and 10% of upside to encourage allowing good trades
+        if profit < 0:
+            rm_pain = profit * 0.5
+        else:
+            rm_pain = profit * 0.1
+            
         rm_reward_final = float(self._rm_cycle_reward + rm_pain)
         rm_reward_final -= rm_restrict_penalty  # RM owns the restrictiveness penalty
         self.rewards[RISK_MANAGER] = float(rm_reward_final)
@@ -542,7 +537,7 @@ class MultiAgentTradingEnv(AECEnv):
             # If agent traded less than 15% of steps, crush all rewards
             trade_ratio = self._trades_executed / max(self._current_step, 1)
             if trade_ratio < 0.15:
-                inactivity_slam = -3.0 * (1.0 - trade_ratio / 0.15)
+                inactivity_slam = -5.0 * (1.0 - trade_ratio / 0.15)
                 for ag in self.agents:
                     self.rewards[ag] = float(self.rewards.get(ag, 0.0) + inactivity_slam)
 
@@ -719,14 +714,14 @@ class MultiAgentTradingEnv(AECEnv):
             self._risk.trade_count += 1
         return traded
 
-    def _check_sl_tp(self, current_price: float):
-        """Check and execute SL/TP orders."""
+    def _check_sl_tp(self, current_price: float) -> bool:
+        """Check and execute SL/TP orders. Return True if hit."""
         ticker  = self.ticker
         pos_qty = self._portfolio.positions.get(ticker, 0.0)
         sl      = self._portfolio.stop_losses.get(ticker)
         tp      = self._portfolio.take_profits.get(ticker)
         if abs(pos_qty) < 1e-8:
-            return
+            return False
 
         hit = False
         if pos_qty > 0:
@@ -754,6 +749,7 @@ class MultiAgentTradingEnv(AECEnv):
                 self._portfolio.stop_losses[ticker] = None
                 self._portfolio.take_profits[ticker] = None
                 self._risk.trade_count += 1
+        return hit
 
     def _make_dummy_data(self, n: int = 500, difficulty: str = "hard",
                         seed=None, forced_regime=None):
@@ -774,6 +770,13 @@ class MultiAgentTradingEnv(AECEnv):
     @functools.lru_cache(maxsize=None)
     def _act_space(self, agent: str) -> spaces.Space:
         return self.action_spaces[agent]
+
+    def _clear_rewards(self):
+        self.rewards = {ag: 0.0 for ag in self.agents}
+
+    def _was_dead_step(self, action):
+        self._clear_rewards()
+        self._accumulate_rewards()
 
     def state(self) -> Dict:
         """Return the full shared environment state (for visualization)."""
