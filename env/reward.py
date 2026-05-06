@@ -33,6 +33,7 @@ def compute_raw_reward(
     weights: Dict[str, float] | None = None,
     direction: int = 0,
     price_trend: float = 0.0,
+    trade_size: float = 0.0,
 ) -> float:
     """
     Compute the raw (un-normalized) reward signal.
@@ -51,6 +52,7 @@ def compute_raw_reward(
         weights: Component weights (uses defaults if None).
         direction: Action direction (0=Hold, 1=Buy, 2=Sell).
         price_trend: Signed price change fraction for the step.
+        trade_size: The normalized size of the trade [0, 1].
 
     Returns:
         Raw reward (float, unbounded).
@@ -71,15 +73,15 @@ def compute_raw_reward(
     # Hold penalty: small cost for doing nothing
     hold_pen = 0.0  # Hold penalty is now progressive, handled in env
 
-    # Directional correctness: reward matching the trend
+    # Directional correctness: reward matching the trend, scaled by trade size
     dir_bonus = 0.0
     w_dir = w.get("directional_bonus", 0.3)
     if direction == 1 and price_trend > 0:       # Bought into uptrend
-        dir_bonus = w_dir * min(abs(price_trend) * 100, 1.0)
+        dir_bonus = w_dir * min(abs(price_trend) * 100, 1.0) * trade_size
     elif direction == 2 and price_trend < 0:     # Sold into downtrend
-        dir_bonus = w_dir * min(abs(price_trend) * 100, 1.0)
+        dir_bonus = w_dir * min(abs(price_trend) * 100, 1.0) * trade_size
     elif direction != 0:                         # Wrong direction
-        dir_bonus = -w_dir * 0.5
+        dir_bonus = -w_dir * min(abs(price_trend) * 100, 1.0) * trade_size
 
     reward = (
         profit_signal

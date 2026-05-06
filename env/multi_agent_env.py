@@ -294,6 +294,8 @@ class MultiAgentTradingEnv(AECEnv):
         rm_size_limit  = float(self._rm_message[0])
         rm_allow_new   = bool(self._rm_message[1] > 0.5)
         rm_force_reduce = bool(self._rm_message[2] > 0.5)
+        
+        pos = self._portfolio.positions.get(self.ticker, 0.0)
 
         interventions: List[Dict] = []
 
@@ -306,7 +308,8 @@ class MultiAgentTradingEnv(AECEnv):
             })
             size = rm_size_limit
 
-        if direction in (1, 2) and not rm_allow_new:
+        is_opening_or_adding = (direction == 1 and pos >= 0) or (direction == 2 and pos <= 0)
+        if is_opening_or_adding and not rm_allow_new:
             interventions.append({
                 "agent": "RiskManager",
                 "type":  "no_new_positions",
@@ -314,7 +317,7 @@ class MultiAgentTradingEnv(AECEnv):
             })
             direction = 0  # Force hold
 
-        if rm_force_reduce and direction == 1:
+        if rm_force_reduce and direction == 1 and pos >= 0:
             interventions.append({
                 "agent": "RiskManager",
                 "type":  "force_reduce",
@@ -333,12 +336,12 @@ class MultiAgentTradingEnv(AECEnv):
             })
             size = min(size, cap_alloc)
 
-        # PM strong override_strength >0.7 means PM wants to force hold
-        if self._pm_override_strength > 0.7 and direction != 0:
+        # PM strong override_strength >0.7 means PM wants to veto new positions
+        if self._pm_override_strength > 0.7 and direction != 0 and is_opening_or_adding:
             interventions.append({
                 "agent": "PortfolioManager",
                 "type":  "pm_veto",
-                "reason": "PM vetoed trade (insufficient conviction signal)",
+                "reason": "PM vetoed new trade (insufficient conviction signal)",
             })
             direction = 0
 
@@ -423,9 +426,18 @@ class MultiAgentTradingEnv(AECEnv):
         traded = self._execute_trade(direction, size, sl_input, tp_input, current_price)
 
         # Track activity based on actual execution (closing the fake-trade loophole)
-        # Activity = entering a new trade OR having an SL/TP hit.
-        if not (traded or sl_tp_hit):
-            self._consecutive_holds += 1
+        # Activity = entering a new trade OR having an SL/TP hit OR holding >10% of portfolio.
+        pos_qty = self._portfolio.positions.get(self.ticker, 0.0)
+        is_invested = (abs(pos_qty) * current_price) / (prev_value + 1e-10) > 0.10
+        
+        if not (traded or sl_tp_hit or is_invested):
+            gov_blocked = any(
+                i["agent"] in ["RiskManager", "PortfolioManager"] and i["type"] in ["no_new_positions", "pm_veto", "force_reduce", "size_clamp", "capital_cap"]
+                for i in trade.get("interventions", [])
+            )
+            is_gov_restrictive = (not bool(self._rm_message[1] > 0.5)) or (self._pm_override_strength > 0.7)
+            if not (gov_blocked or is_gov_restrictive):
+                self._consecutive_holds += 1
         else:
             self._consecutive_holds = 0
             if traded: self._trades_executed += 1
@@ -465,19 +477,25 @@ class MultiAgentTradingEnv(AECEnv):
         # ═══════════════════════════════════════════════════════════════════
         cap_alloc = float(self._pm_message[0])
         size_limit = float(self._rm_message[0])
+        rm_allow_new = bool(self._rm_message[1] > 0.5)
+        rm_force_reduce = bool(self._rm_message[2] > 0.5)
         current_dd = float(self._risk.current_drawdown)
 
         # PM: penalize low capital allocation continuously
         # Full penalty at 0%, zero penalty at 20%+
         utilization_penalty = max(0.0, 0.20 - cap_alloc) * 0.5
+        if current_dd < 0.10 and self._pm_override_strength > 0.7:
+            utilization_penalty += 0.20  # Penalty for excessive vetoes in calm markets
 
         # RM: penalize overly tight size limits ONLY when market is calm
         # During real drawdowns (>10%), restricting is correct behavior
         rm_restrict_penalty = 0.0
         if current_dd < 0.10:
             rm_restrict_penalty = max(0.0, 0.20 - size_limit) * 0.5
-
-        continuous_gov_penalty = utilization_penalty + rm_restrict_penalty
+            if not rm_allow_new:
+                rm_restrict_penalty += 0.20  # Penalty for blanket ban in calm markets
+            if rm_force_reduce:
+                rm_restrict_penalty += 0.20  # Penalty for forced reduction in calm markets
 
         # Keep failure taxonomy for research logging (NOT for reward)
         self._failure_tax.check_step(
@@ -492,11 +510,33 @@ class MultiAgentTradingEnv(AECEnv):
         # ── Trader reward ───────────────────────────────────────────────────
         trader_reward = normalize_reward(raw_r + self._trader_compliance_bonus)
         trader_reward -= progressive_hold_cost
-        trader_reward -= continuous_gov_penalty
         self.rewards[TRADER] = float(trader_reward)
         self._episode_rewards.append(trader_reward)
 
-        # ── PM reward: grade-based portfolio performance ────────────────────
+        # ── PM reward: risk-averse portfolio performance ────────────────────
+        # PM uses the same raw reward basis as the trader but with a highly risk-averse profile
+        pm_weights = {
+            "profit": 1.0,
+            "drawdown": 2.0,       # Double penalty for drawdowns
+            "volatility": 1.0,     # Higher penalty for volatility
+            "sharpe": 0.5,
+            "overtrading": 0.0,
+            "hold_penalty": 0.0,
+            "directional_bonus": 0.0
+        }
+        pm_raw_r = compute_raw_reward(
+            profit=profit,
+            drawdown=self._risk.current_drawdown,
+            volatility=self._risk.return_volatility(),
+            sharpe=self._risk.sharpe_ratio(),
+            trade_count=0,
+            weights=pm_weights,
+            direction=0,
+            price_trend=0.0
+        )
+        pm_reward = normalize_reward(pm_raw_r)
+        
+        # We still compute grade for info/logging
         normalized_profit  = float(np.clip((profit + 1.0) / 2.0, 0.0, 1.0))
         normalized_sharpe  = float(np.clip((self._risk.sharpe_ratio() + 2.0) / 4.0, 0.0, 1.0))
         grade = float(compute_grade({
@@ -504,19 +544,19 @@ class MultiAgentTradingEnv(AECEnv):
             "sharpe": normalized_sharpe,
             "drawdown": float(self._risk.max_drawdown),
         }))
-        # Center reward at grade 0.65 (the 'do nothing' grade) to avoid reward hacking.
-        pm_reward = (grade - 0.65) * 1.5
+
         if self._risk.max_drawdown > 0.20:
-            pm_reward -= 0.30              # PM heavily penalized for deep drawdown
+            pm_reward -= 0.50              # PM heavily penalized for deep drawdown
         pm_reward -= utilization_penalty   # PM owns the capital allocation penalty
         self.rewards[PORTFOLIO_MGR] = float(pm_reward)
 
         # ── RM: shared downside with final portfolio value ──────────────────
         # RM shares 50% of downside and 10% of upside to encourage allowing good trades
-        if profit < 0:
-            rm_pain = profit * 0.5
+        profit_signal = profit * 100.0
+        if profit_signal < 0:
+            rm_pain = profit_signal * 0.5
         else:
-            rm_pain = profit * 0.1
+            rm_pain = profit_signal * 0.1
             
         rm_reward_final = float(self._rm_cycle_reward + rm_pain)
         rm_reward_final -= rm_restrict_penalty  # RM owns the restrictiveness penalty
