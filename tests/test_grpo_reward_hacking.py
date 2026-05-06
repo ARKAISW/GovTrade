@@ -29,7 +29,7 @@ def test_profit_reward_uses_hidden_future_return_and_rejects_fake_trade():
 
     rewards = profit_reward_func(prompts, completions, future_return=[0.02, 0.02, 0.02])
 
-    assert rewards == [1.0, 0.0, 0.1]
+    assert rewards == [1.0, 0.0, 0.0]
 
 
 def test_alignment_rewards_internal_consistency_not_prompt_echoing():

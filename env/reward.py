@@ -263,7 +263,8 @@ def profit_reward_func(prompts, completions, **kwargs) -> list[float]:
             elif direction == 2 and is_down_trend: # Sell in downtrend
                 rewards.append(1.0)
             elif direction == 0:
-                rewards.append(1.0 if not is_up_trend and not is_down_trend else 0.1)
+                # Greatly reduce reward for holding during consolidation to prevent "hyper-passive" farming
+                rewards.append(0.2 if not is_up_trend and not is_down_trend else 0.0)
             else: # Wrong direction
                 rewards.append(0.0)
         except Exception:

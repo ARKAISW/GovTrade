@@ -256,6 +256,10 @@ class TradingEnv(OpenEnvBase, gym.Env):
         self.governance_log = []
         self.episode_interventions = 0
         self.episode_compliant_actions = 0
+        
+        self._consecutive_holds = 0
+        self._steps_since_last_trade = 0
+        self._trades_executed = 0
 
         obs = get_observation(self.market, self.portfolio, self.risk, self.ticker)
         info = self._get_info()
@@ -598,6 +602,23 @@ class TradingEnv(OpenEnvBase, gym.Env):
             self.risk.trade_count += 1
             step_trade_count += 1
 
+        pos_qty = self.portfolio.positions.get(self.ticker, 0.0)
+        is_invested = (abs(pos_qty) * current_price) / (prev_value + 1e-10) > 0.10
+        is_meaningful_trade = traded and size >= 0.05
+
+        if is_meaningful_trade or sl_tp_hit:
+            self._consecutive_holds = 0
+            self._steps_since_last_trade = 0
+            if traded: self._trades_executed += 1
+        else:
+            self._steps_since_last_trade += 1
+            if traded: self._trades_executed += 1
+            
+            if is_invested and self._steps_since_last_trade < 20:
+                pass
+            else:
+                self._consecutive_holds += 1
+
         # Advance market
         self.current_step += 1
         self.market.current_step = self.current_step
@@ -620,7 +641,11 @@ class TradingEnv(OpenEnvBase, gym.Env):
             weights=self.reward_weights,
             direction=direction,
             price_trend=price_trend,
+            trade_size=size,
         )
+        
+        progressive_hold_raw_cost = 0.001 * min(self._consecutive_holds, 20)
+        raw_r -= progressive_hold_raw_cost
         
         # Combine raw profit reward with our multiple behavior signals
         step_reward = raw_r
@@ -635,7 +660,6 @@ class TradingEnv(OpenEnvBase, gym.Env):
         # Penalty for triggering governance interventions
         n_interventions = len(interventions)
         if n_interventions == 0 and direction != 0:
-            step_reward += 0.15  # Compliance bonus
             self.episode_compliant_actions += 1
         elif n_interventions > 0:
             step_reward -= 0.05 * n_interventions  # Per-intervention penalty
@@ -647,8 +671,10 @@ class TradingEnv(OpenEnvBase, gym.Env):
         # Check termination
         terminated = self.current_step >= self.max_steps
         truncated = False
-        if new_value < self.initial_cash * 0.1:
+        blown_up = new_value < self.initial_cash * 0.10
+        if blown_up:
             terminated = True
+            
         # Margin call: force-close short if unrealized loss exceeds threshold
         position_qty = self.portfolio.positions.get(self.ticker, 0.0)
         if position_qty < 0:
@@ -680,6 +706,13 @@ class TradingEnv(OpenEnvBase, gym.Env):
                 })
                 self.episode_interventions += 1
                 terminated = True
+                blown_up = True
+                
+        if blown_up:
+            # Apply suicide pact penalty to prevent early termination farming
+            reward -= 100.0
+            self.episode_rewards[-1] = reward
+
         if terminated:
             self.done = True
 

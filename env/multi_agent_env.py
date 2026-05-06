@@ -396,8 +396,8 @@ class MultiAgentTradingEnv(AECEnv):
 
         # Compliance reward/penalty — will be finalized after market moves
         n_interventions = len(interventions)
-        compliance_bonus = 0.15 if (n_interventions == 0 and direction != 0) else (-0.05 * n_interventions)
-        self._trader_compliance_bonus = compliance_bonus
+        compliance_penalty = -0.05 * n_interventions
+        self._trader_compliance_bonus = compliance_penalty
 
     # ───────────────────────────────────────────────────────────────────────────
     # Market Advance (called after Trader acts)
@@ -426,21 +426,26 @@ class MultiAgentTradingEnv(AECEnv):
         traded = self._execute_trade(direction, size, sl_input, tp_input, current_price)
 
         # Track activity based on actual execution (closing the fake-trade loophole)
-        # Activity = entering a new trade OR having an SL/TP hit OR holding >10% of portfolio.
+        if not hasattr(self, "_steps_since_last_trade"):
+            self._steps_since_last_trade = 0
+
         pos_qty = self._portfolio.positions.get(self.ticker, 0.0)
         is_invested = (abs(pos_qty) * current_price) / (prev_value + 1e-10) > 0.10
-        
-        if not (traded or sl_tp_hit or is_invested):
-            gov_blocked = any(
-                i["agent"] in ["RiskManager", "PortfolioManager"] and i["type"] in ["no_new_positions", "pm_veto", "force_reduce", "size_clamp", "capital_cap"]
-                for i in trade.get("interventions", [])
-            )
-            is_gov_restrictive = (not bool(self._rm_message[1] > 0.5)) or (self._pm_override_strength > 0.7)
-            if not (gov_blocked or is_gov_restrictive):
-                self._consecutive_holds += 1
-        else:
+        is_meaningful_trade = traded and size >= 0.05
+
+        if is_meaningful_trade or sl_tp_hit:
             self._consecutive_holds = 0
+            self._steps_since_last_trade = 0
             if traded: self._trades_executed += 1
+        else:
+            self._steps_since_last_trade += 1
+            if traded: self._trades_executed += 1
+            
+            # Trader is excused from hold penalty ONLY if meaningfully invested AND hasn't been holding indefinitely
+            if is_invested and self._steps_since_last_trade < 20:
+                pass  # Safely riding a trend, no penalty
+            else:
+                self._consecutive_holds += 1
 
         # Advance market step
         self._current_step += 1
@@ -464,13 +469,16 @@ class MultiAgentTradingEnv(AECEnv):
             trade_count=int(traded or sl_tp_hit),
             direction=direction,
             price_trend=price_trend,
+            trade_size=size,
         )
 
         # ═══════════════════════════════════════════════════════════════════
-        # LAYER 1: Progressive Consecutive Hold Penalty
+        # LAYER 1: Progressive Consecutive Hold Penalty (Applied to Raw Reward)
         # ═══════════════════════════════════════════════════════════════════
-        # Escalates the longer the agent refuses to trade.
-        progressive_hold_cost = 0.01 * min(self._consecutive_holds, 20)
+        # Escalates the longer the agent refuses to trade. Scaled to raw reward
+        # to properly balance against ticket fees and directional bonuses.
+        progressive_hold_raw_cost = 0.001 * min(self._consecutive_holds, 20)
+        raw_r -= progressive_hold_raw_cost
 
         # ═══════════════════════════════════════════════════════════════════
         # LAYER 2: Continuous Governance Penalties (no binary thresholds)
@@ -482,20 +490,19 @@ class MultiAgentTradingEnv(AECEnv):
         current_dd = float(self._risk.current_drawdown)
 
         # PM: penalize low capital allocation continuously
-        # Full penalty at 0%, zero penalty at 20%+
-        utilization_penalty = max(0.0, 0.20 - cap_alloc) * 0.5
-        if current_dd < 0.10 and self._pm_override_strength > 0.7:
-            utilization_penalty += 0.20  # Penalty for excessive vetoes in calm markets
+        utilization_penalty = max(0.0, 0.20 - cap_alloc) * 5.0
+        
+        # Always penalize absolute vetoes so PM cannot freeze the portfolio completely
+        pm_veto_pen = 1.0 if current_dd < 0.10 else 0.20
+        if self._pm_override_strength > 0.7:
+            utilization_penalty += pm_veto_pen
 
-        # RM: penalize overly tight size limits ONLY when market is calm
-        # During real drawdowns (>10%), restricting is correct behavior
-        rm_restrict_penalty = 0.0
-        if current_dd < 0.10:
-            rm_restrict_penalty = max(0.0, 0.20 - size_limit) * 0.5
-            if not rm_allow_new:
-                rm_restrict_penalty += 0.20  # Penalty for blanket ban in calm markets
-            if rm_force_reduce:
-                rm_restrict_penalty += 0.20  # Penalty for forced reduction in calm markets
+        # RM: penalize overly tight size limits. Less strict during drawdowns, but never 0.
+        rm_restrict_penalty = max(0.0, 0.20 - size_limit) * (0.5 if current_dd < 0.10 else 0.10)
+        if not rm_allow_new:
+            rm_restrict_penalty += 0.20 if current_dd < 0.10 else 0.05
+        if rm_force_reduce:
+            rm_restrict_penalty += 0.20 if current_dd < 0.10 else 0.05
 
         # Keep failure taxonomy for research logging (NOT for reward)
         self._failure_tax.check_step(
@@ -509,7 +516,6 @@ class MultiAgentTradingEnv(AECEnv):
 
         # ── Trader reward ───────────────────────────────────────────────────
         trader_reward = normalize_reward(raw_r + self._trader_compliance_bonus)
-        trader_reward -= progressive_hold_cost
         self.rewards[TRADER] = float(trader_reward)
         self._episode_rewards.append(trader_reward)
 
@@ -563,13 +569,19 @@ class MultiAgentTradingEnv(AECEnv):
         self.rewards[RISK_MANAGER] = float(rm_reward_final)
 
         # ── Termination Check ───────────────────────────────────────────────
+        blown_up = new_value < self.initial_cash * 0.10
         terminated = (
             self._current_step >= self.max_steps or
-            new_value < self.initial_cash * 0.10   # Blowup condition
+            blown_up
         )
         if terminated:
             for ag in self.agents:
                 self.terminations[ag] = True
+                
+            if blown_up:
+                # LAYER 4: Suicide Pact Penalty
+                for ag in self.agents:
+                    self.rewards[ag] -= 100.0
 
             # ═══════════════════════════════════════════════════════════════
             # LAYER 3: End-of-Episode Activity Gate
