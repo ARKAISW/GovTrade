@@ -331,20 +331,35 @@ class LearnedTrader:
         self.network.to(device)
 
     def act(
-        self, obs: np.ndarray, deterministic: bool = False,
+        self, obs: np.ndarray, deterministic: bool = False, current_price: float = 1.0,
     ) -> Dict[str, np.ndarray]:
+        """Select action given observation. 
+        Note: requires current_price to convert sl/tp offsets to absolute prices.
+        """
         obs_t = torch.FloatTensor(obs).unsqueeze(0).to(self.device)
         with torch.no_grad():
             result = self.network.get_action_and_value(obs_t)
 
         direction = int(result["direction"].item())
         size = float(result["size"].item())
+        sl_off = float(result["sl_offset"].item())
+        tp_off = float(result["tp_offset"].item())
+
+        # Convert offsets to absolute prices
+        sl_val = 0.0
+        tp_val = 0.0
+        if direction == 1: # BUY
+            sl_val = current_price * (1.0 - sl_off)
+            tp_val = current_price * (1.0 + tp_off)
+        elif direction == 2: # SELL
+            sl_val = current_price * (1.0 + sl_off)
+            tp_val = current_price * (1.0 - tp_off)
 
         return {
             "direction": direction,
             "size": np.array([size], dtype=np.float32),
-            "sl": np.array([0.0], dtype=np.float32),  # SL/TP computed by env
-            "tp": np.array([0.0], dtype=np.float32),
+            "sl": np.array([sl_val], dtype=np.float32),
+            "tp": np.array([tp_val], dtype=np.float32),
         }
 
     def parameters(self):

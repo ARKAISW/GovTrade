@@ -20,8 +20,8 @@ DEFAULT_WEIGHTS = {
     "directional_bonus": 0.3,
 }
 
-# Normalization: tanh scale factor (higher = sharper gradient near zero)
-DEFAULT_NORM_SCALE = 10.0
+# Normalization: tanh scale factor (higher = more compression, lower = more linear near zero)
+DEFAULT_NORM_SCALE = 2.0
 
 
 def compute_raw_reward(
@@ -33,7 +33,7 @@ def compute_raw_reward(
     weights: Dict[str, float] | None = None,
     direction: int = 0,
     price_trend: float = 0.0,
-    trade_size: float = 0.0,
+    trade_size: float = 1.0,
 ) -> float:
     """
     Compute the raw (un-normalized) reward signal.
@@ -114,18 +114,22 @@ def compute_grade(metrics: Dict[str, float]) -> float:
     """
     Compute the final evaluation grade [0, 1].
 
-    grade = 0.4 * normalized_profit
+    grade = 0.4 * profit_score
           + 0.3 * normalized_sharpe
           + 0.3 * (1 - normalized_drawdown)
 
-    All input metrics must already be in [0, 1].
+    All input metrics must already be in [0, 1] except profit,
+    which is handled by mapping [-0.5, 0.5] to [0, 1].
     """
-    profit = np.clip(metrics.get("profit", 0.0), 0.0, 1.0)
+    # Map profit from [-0.5, 0.5] to [0, 1] to avoid masking losses
+    raw_profit = metrics.get("profit", 0.0)
+    profit_score = np.clip((raw_profit + 0.5) / 1.0, 0.0, 1.0)
+    
     sharpe = np.clip(metrics.get("sharpe", 0.0), 0.0, 1.0)
     drawdown = np.clip(metrics.get("drawdown", 0.0), 0.0, 1.0)
 
     grade = (
-        0.4 * profit
+        0.4 * profit_score
         + 0.3 * sharpe
         + 0.3 * (1.0 - drawdown)
     )
@@ -177,9 +181,9 @@ def format_reward_func(prompts, completions, **kwargs) -> list[float]:
                 continue
             
             if _extract_json_action(completion) is not None:
-                rewards.append(1.0)
+                rewards.append(0.5) # Reduced from 1.0
             else:
-                rewards.append(0.4)
+                rewards.append(0.2) # Reduced from 0.4
         except Exception:
             rewards.append(0.0)
     return rewards
@@ -199,11 +203,11 @@ def alignment_reward_func(prompts, completions, **kwargs) -> list[float]:
             
             score = 0.0
             if direction == 1 and ("buy" in thought or "long" in thought or "bull" in thought or "up" in thought):
-                score = 1.0
+                score = 0.5 # Reduced from 1.0
             elif direction == 2 and ("sell" in thought or "short" in thought or "bear" in thought or "down" in thought):
-                score = 1.0
+                score = 0.5 # Reduced from 1.0
             elif direction == 0 and ("hold" in thought or "wait" in thought or "neutral" in thought):
-                score = 0.6
+                score = 0.3 # Reduced from 0.6
                 
             rewards.append(score)
         except Exception:
@@ -226,7 +230,7 @@ def risk_reward_func(prompts, completions, **kwargs) -> list[float]:
                 size = float(data.get("size", 0.0))
                 
                 # Reward 1: Under limit
-                score = 0.7 if size <= limit else 0.0
+                score = 0.4 if size <= limit else 0.0 # Reduced from 0.7
                 rewards.append(score)
             else:
                 rewards.append(0.0)
@@ -236,8 +240,8 @@ def risk_reward_func(prompts, completions, **kwargs) -> list[float]:
 
 def profit_reward_func(prompts, completions, **kwargs) -> list[float]:
     """
-    Simulated PnL: Checks if the action (direction) matches the actual
-    future price trend provided in the hidden 'future_return' dataset column.
+    Simulated PnL verifier for GRPO. 
+    Checks if the agent's direction aligns with the future price trend.
     """
     rewards = []
     future_returns = kwargs.get("future_return", [0.0] * len(prompts))
@@ -255,18 +259,22 @@ def profit_reward_func(prompts, completions, **kwargs) -> list[float]:
                 rewards.append(0.0)
                 continue
 
-            is_up_trend = f_ret > 0.001
-            is_down_trend = f_ret < -0.001
+            # Signal thresholds
+            is_up_trend = f_ret > 0.002
+            is_down_trend = f_ret < -0.002
             
-            if direction == 1 and is_up_trend: # Buy in uptrend
-                rewards.append(1.0)
-            elif direction == 2 and is_down_trend: # Sell in downtrend
-                rewards.append(1.0)
+            # Increased profit rewards to [0.5-1.0] to balance against governance
+            if direction == 1 and is_up_trend: 
+                rewards.append(0.8)
+            elif direction == 2 and is_down_trend:
+                rewards.append(0.8)
             elif direction == 0:
-                # Greatly reduce reward for holding during consolidation to prevent "hyper-passive" farming
-                rewards.append(0.2 if not is_up_trend and not is_down_trend else 0.0)
+                if not is_up_trend and not is_down_trend:
+                    rewards.append(0.3)
+                else:
+                    rewards.append(0.0)
             else: # Wrong direction
-                rewards.append(0.0)
+                rewards.append(-0.2)
         except Exception:
             rewards.append(0.0)
     return rewards
@@ -275,15 +283,6 @@ def profit_reward_func(prompts, completions, **kwargs) -> list[float]:
 def governance_reward_func(prompts, completions, **kwargs) -> list[float]:
     """Self-regulation verifier: rewards actions that would pass governance
     without intervention.
-
-    An agent that self-regulates by proposing compliant executable actions
-    scores higher than one that blindly maximizes size and forces clamps.
-
-    Scoring rubric (0-1):
-      +0.40  Action has valid JSON with size ≤ governance limit.
-      +0.20  Size uses ≤ 80 % of limit (conservative, professional).
-      +0.20  Direction is non-zero with executable size.
-      -0.50  Size EXCEEDS governance limit (would trigger intervention).
     """
     rewards = []
     for prompt, completion in zip(prompts, completions):
@@ -301,21 +300,18 @@ def governance_reward_func(prompts, completions, **kwargs) -> list[float]:
 
             score = 0.0
 
-            # Core compliance: within limit
+            # Slightly reduced governance scores
             if size <= limit:
-                score += 0.40
-                # Conservative bonus: using ≤ 80 % of limit
+                score += 0.30
                 if 0 < size <= limit * 0.8:
-                    score += 0.20
+                    score += 0.10
             else:
-                # Governance would intervene — penalise
-                score -= 0.50
+                score -= 0.40
 
-            # Activity bonus only for executable, non-hold actions.
             if direction != 0 and size >= 0.01:
-                score += 0.20
+                score += 0.10
 
-            rewards.append(float(np.clip(score, 0.0, 1.0)))
+            rewards.append(float(np.clip(score, -1.0, 1.0)))
         except Exception:
             rewards.append(0.0)
     return rewards

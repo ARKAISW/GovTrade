@@ -30,6 +30,7 @@ Three independent agents operate in sequence each market step:
   3. You (Trader) — propose trades that maximize profit while respecting governance
 
 CRITICAL: You MUST comply with the Risk Manager's size limit. Exceeding it triggers an intervention.
+CRITICAL: You MUST set realistic stop-loss (sl) and take-profit (tp) levels relative to the current price.
 
 Respond exactly in this format:
 <thought>
@@ -37,13 +38,13 @@ Briefly analyze the market conditions, explain how governance constraints affect
 and justify your trade. Use a non-empty thought without filler.
 </thought>
 <action>
-{"direction": 0, "size": 0.0, "sl": 0, "tp": 0}
+{"direction": 1, "size": 0.25, "sl": 98.50, "tp": 105.20}
 </action>
 
 direction: 0=HOLD, 1=BUY, 2=SELL
 size: fraction of portfolio (0.0 to 1.0) — MUST be ≤ Risk Manager's size_limit
-sl: stop-loss (0 = none)
-tp: take-profit (0 = none)
+sl: stop-loss (absolute price level)
+tp: take-profit (absolute price level)
 """
 
 
@@ -191,11 +192,21 @@ def generate_pz_scenarios(
                     break
 
                 # Take a random trader action so the env advances
+                d = random.choice([0, 1, 2])
+                sl_val = 0.0
+                tp_val = 0.0
+                if d == 1:
+                    sl_val = current_price * 0.98
+                    tp_val = current_price * 1.05
+                elif d == 2:
+                    sl_val = current_price * 1.02
+                    tp_val = current_price * 0.95
+                    
                 trader_action = {
-                    "direction": random.choice([0, 1, 2]),
+                    "direction": d,
                     "size": np.array([random.uniform(0.05, 0.3)], dtype=np.float32),
-                    "sl": np.array([0.0], dtype=np.float32),
-                    "tp": np.array([0.0], dtype=np.float32),
+                    "sl": np.array([sl_val], dtype=np.float32),
+                    "tp": np.array([tp_val], dtype=np.float32),
                 }
                 env.step(trader_action)
 

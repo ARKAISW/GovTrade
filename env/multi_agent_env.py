@@ -23,14 +23,10 @@ from gymnasium import spaces
 from pettingzoo import AECEnv
 
 try:
-    # PettingZoo 1.25.0+ exposes the selector class as AgentSelector.
-    from pettingzoo.utils import AgentSelector
-except ImportError:
-    # Older releases expose agent_selector directly, while some transitional
-    # layouts expose a module with AgentSelector inside it.
-    from pettingzoo.utils import agent_selector as _agent_selector
-
-    AgentSelector = getattr(_agent_selector, "AgentSelector", _agent_selector)
+    import pettingzoo.utils.agent_selector as asel
+    AgentSelectorClass = asel.AgentSelector
+except (ImportError, AttributeError):
+    from pettingzoo.utils import AgentSelector as AgentSelectorClass
 
 from env.state import MarketState, PortfolioState, RiskState, get_observation
 from env.reward import compute_raw_reward, normalize_reward, compute_grade
@@ -146,7 +142,14 @@ class MultiAgentTradingEnv(AECEnv):
         }
 
         # ── Internal state (reset before first use) ─────────────────────────
-        self._agent_selector = AgentSelector(ALL_AGENTS)
+        self._agent_selector = asel.AgentSelector(ALL_AGENTS)
+        self.agent_selection = ALL_AGENTS[0]
+        self.rewards = {ag: 0.0 for ag in ALL_AGENTS}
+        self._cumulative_rewards = {ag: 0.0 for ag in ALL_AGENTS}
+        self.terminations = {ag: False for ag in ALL_AGENTS}
+        self.truncations = {ag: False for ag in ALL_AGENTS}
+        self.infos = {ag: {} for ag in ALL_AGENTS}
+
         self._reset_internal_state()
 
     # ───────────────────────────────────────────────────────────────────────────
@@ -179,6 +182,8 @@ class MultiAgentTradingEnv(AECEnv):
         if self.terminations[agent] or self.truncations[agent]:
             # Dead-step: PZ compliance requires we handle this
             self._was_dead_step(action)
+            # Ensure selector advances after a dead step
+            self.agent_selection = self._agent_selector.next()
             return
         # The current agent's cumulative reward was already returned by last().
         # Reset its accumulation window before processing a fresh action.
@@ -249,7 +254,7 @@ class MultiAgentTradingEnv(AECEnv):
 
         # Penalty-only drawdown response: never reward the RM for a crisis existing.
         if drawdown > 0.10 and size_limit > 0.30:
-            rm_reward -= 0.40
+            rm_reward -= 0.20 # Toned down from 0.40
 
         # Note: shared upside/downside is now handled in _advance_market to ensure
         # synchronized profit calculation across all agents.
@@ -317,13 +322,22 @@ class MultiAgentTradingEnv(AECEnv):
             })
             direction = 0  # Force hold
 
-        if rm_force_reduce and direction == 1 and pos >= 0:
-            interventions.append({
-                "agent": "RiskManager",
-                "type":  "force_reduce",
-                "reason": "RM signaling to reduce longs",
-            })
-            direction = 2  # Flip to reduce
+        # Issue 11: Handle both long and short force-reductions
+        if rm_force_reduce:
+            if direction == 1 and pos >= 0:
+                interventions.append({
+                    "agent": "RiskManager",
+                    "type":  "force_reduce",
+                    "reason": "RM signaling to reduce longs",
+                })
+                direction = 2  # Flip to reduce
+            elif direction == 2 and pos <= 0:
+                interventions.append({
+                    "agent": "RiskManager",
+                    "type":  "force_reduce_short",
+                    "reason": "RM signaling to reduce shorts",
+                })
+                direction = 1  # Flip to reduce (cover)
 
         # ── Apply Portfolio Manager override ────────────────────────────────
         cap_alloc  = self._pm_capital_allocation
@@ -359,6 +373,10 @@ class MultiAgentTradingEnv(AECEnv):
 
         current_price = self._market.current_price()
         DEFAULT_SL = 0.02
+        
+        # We track 'assists' separately from 'interventions' (violations)
+        assists: List[Dict] = []
+        
         invalid_sl = False
         if direction == 1:
             invalid_sl = sl_input <= 0 or sl_input >= current_price or sl_input < current_price * 0.5
@@ -371,7 +389,7 @@ class MultiAgentTradingEnv(AECEnv):
                 sl_input = current_price * (1 - DEFAULT_SL)
             else:
                 sl_input = current_price * (1 + DEFAULT_SL)
-            interventions.append({
+            assists.append({
                 "agent": "RiskManager",
                 "type": "auto_sl",
                 "original_sl": original_sl,
@@ -381,7 +399,7 @@ class MultiAgentTradingEnv(AECEnv):
         if direction != 0 and tp_input <= 0 and sl_input > 0:
             sl_dist = abs(current_price - sl_input)
             tp_input = (current_price + sl_dist * 2.0) if direction == 1 else (current_price - sl_dist * 2.0)
-            interventions.append({"agent": "RiskManager", "type": "auto_tp"})
+            assists.append({"agent": "RiskManager", "type": "auto_tp"})
 
         # Store pending trade for market advance
         self._pending_trade = {
@@ -390,13 +408,19 @@ class MultiAgentTradingEnv(AECEnv):
             "sl": sl_input,
             "tp": tp_input,
             "interventions": interventions,
+            "assists": assists,
             "original_direction": int(action["direction"]),
             "original_size": size_raw,
         }
 
-        # Compliance reward/penalty — will be finalized after market moves
+        # Compliance reward/penalty — ONLY triggered by interventions (violations)
         n_interventions = len(interventions)
-        compliance_penalty = -0.05 * n_interventions
+        compliance_penalty = -0.10 * n_interventions # Increased weight for actual violations
+        
+        # Issue 7: Increase assist penalty
+        n_assists = len(assists)
+        compliance_penalty -= 0.05 * n_assists
+        
         self._trader_compliance_bonus = compliance_penalty
 
     # ───────────────────────────────────────────────────────────────────────────
@@ -457,8 +481,8 @@ class MultiAgentTradingEnv(AECEnv):
         self._risk.update(new_value)
         self._episode_values.append(new_value)
 
-        # Compute portfolio delta
-        profit = (new_value - prev_value) / (self.initial_cash + 1e-10)
+        # Issue 6: Compute portfolio delta using NAV as denominator
+        profit = (new_value - prev_value) / (prev_value + 1e-10)
         price_trend = (new_price - current_price) / (current_price + 1e-10)
 
         raw_r = compute_raw_reward(
@@ -475,9 +499,8 @@ class MultiAgentTradingEnv(AECEnv):
         # ═══════════════════════════════════════════════════════════════════
         # LAYER 1: Progressive Consecutive Hold Penalty (Applied to Raw Reward)
         # ═══════════════════════════════════════════════════════════════════
-        # Escalates the longer the agent refuses to trade. Scaled to raw reward
-        # to properly balance against ticket fees and directional bonuses.
-        progressive_hold_raw_cost = 0.001 * min(self._consecutive_holds, 20)
+        # Issue 3: Increased progressive hold cost to 0.005
+        progressive_hold_raw_cost = 0.005 * min(self._consecutive_holds, 20)
         raw_r -= progressive_hold_raw_cost
 
         # ═══════════════════════════════════════════════════════════════════
@@ -490,15 +513,25 @@ class MultiAgentTradingEnv(AECEnv):
         current_dd = float(self._risk.current_drawdown)
 
         # PM: penalize low capital allocation continuously
-        utilization_penalty = max(0.0, 0.20 - cap_alloc) * 5.0
+        vol_factor = float(np.clip(self._risk.return_volatility() * 10.0, 0.0, 1.0))
+        pm_floor = 0.20 * (1.0 - 0.75 * vol_factor)
+        utilization_penalty = max(0.0, pm_floor - cap_alloc) * 5.0
         
+        # Issue 10: Penalize override thrashing
+        if len(self._governance_log) >= 10:
+            recent_pm = [log["pm_message"][1] for log in self._governance_log[-10:]]
+            flips = sum(1 for i in range(1, len(recent_pm)) if (recent_pm[i] > 0.7) != (recent_pm[i-1] > 0.7))
+            if flips > 3:
+                utilization_penalty += 0.05 * flips
+
         # Always penalize absolute vetoes so PM cannot freeze the portfolio completely
-        pm_veto_pen = 1.0 if current_dd < 0.10 else 0.20
+        pm_veto_pen = 0.20 * (1.0 - 0.75 * vol_factor) if current_dd < 0.10 else 0.05
         if self._pm_override_strength > 0.7:
             utilization_penalty += pm_veto_pen
 
-        # RM: penalize overly tight size limits. Less strict during drawdowns, but never 0.
-        rm_restrict_penalty = max(0.0, 0.20 - size_limit) * (0.5 if current_dd < 0.10 else 0.10)
+        # RM: penalize overly tight size limits.
+        rm_floor = 0.20 * (1.0 - 0.75 * vol_factor)
+        rm_restrict_penalty = max(0.0, rm_floor - size_limit) * (0.5 if current_dd < 0.10 else 0.10)
         if not rm_allow_new:
             rm_restrict_penalty += 0.20 if current_dd < 0.10 else 0.05
         if rm_force_reduce:
@@ -510,7 +543,7 @@ class MultiAgentTradingEnv(AECEnv):
             rm_action=self._rm_message,
             pm_action=self._pm_message,
             portfolio_value=float(new_value),
-            drawdown=float(self._risk.max_drawdown),
+            drawdown=float(self._risk.current_drawdown),
             regime_label=getattr(self, "_current_regime_label", ""),
         )
 
@@ -520,11 +553,10 @@ class MultiAgentTradingEnv(AECEnv):
         self._episode_rewards.append(trader_reward)
 
         # ── PM reward: risk-averse portfolio performance ────────────────────
-        # PM uses the same raw reward basis as the trader but with a highly risk-averse profile
         pm_weights = {
             "profit": 1.0,
-            "drawdown": 2.0,       # Double penalty for drawdowns
-            "volatility": 1.0,     # Higher penalty for volatility
+            "drawdown": 2.0,
+            "volatility": 1.0,
             "sharpe": 0.5,
             "overtrading": 0.0,
             "hold_penalty": 0.0,
@@ -542,31 +574,18 @@ class MultiAgentTradingEnv(AECEnv):
         )
         pm_reward = normalize_reward(pm_raw_r)
         
-        # We still compute grade for info/logging
-        normalized_profit  = float(np.clip((profit + 1.0) / 2.0, 0.0, 1.0))
-        normalized_sharpe  = float(np.clip((self._risk.sharpe_ratio() + 2.0) / 4.0, 0.0, 1.0))
-        grade = float(compute_grade({
-            "profit": normalized_profit,
-            "sharpe": normalized_sharpe,
-            "drawdown": float(self._risk.max_drawdown),
-        }))
-
         if self._risk.max_drawdown > 0.20:
-            pm_reward -= 0.50              # PM heavily penalized for deep drawdown
-        pm_reward -= utilization_penalty   # PM owns the capital allocation penalty
+            pm_reward -= 0.50
+        pm_reward -= utilization_penalty
         self.rewards[PORTFOLIO_MGR] = float(pm_reward)
 
-        # ── RM: shared downside with final portfolio value ──────────────────
-        # RM shares 50% of downside and 10% of upside to encourage allowing good trades
+        # ── RM reward: shared downside with final portfolio value ───────────
+        # Issue 1, 2: Symmetrize profit share to 15% and normalize RM reward
         profit_signal = profit * 100.0
-        if profit_signal < 0:
-            rm_pain = profit_signal * 0.5
-        else:
-            rm_pain = profit_signal * 0.1
+        rm_pain = profit_signal * 0.15 # Symmetric 15%
             
-        rm_reward_final = float(self._rm_cycle_reward + rm_pain)
-        rm_reward_final -= rm_restrict_penalty  # RM owns the restrictiveness penalty
-        self.rewards[RISK_MANAGER] = float(rm_reward_final)
+        rm_reward_final_raw = float(self._rm_cycle_reward + rm_pain - rm_restrict_penalty)
+        self.rewards[RISK_MANAGER] = normalize_reward(rm_reward_final_raw)
 
         # ── Termination Check ───────────────────────────────────────────────
         blown_up = new_value < self.initial_cash * 0.10
@@ -579,19 +598,20 @@ class MultiAgentTradingEnv(AECEnv):
                 self.terminations[ag] = True
                 
             if blown_up:
-                # LAYER 4: Suicide Pact Penalty
-                for ag in self.agents:
-                    self.rewards[ag] -= 100.0
+                # Issue 5: Reduced terminal penalties for better gradient stability
+                if TRADER in self.rewards: self.rewards[TRADER] -= 10.0
+                if RISK_MANAGER in self.rewards: self.rewards[RISK_MANAGER] -= 5.0
+                if PORTFOLIO_MGR in self.rewards: self.rewards[PORTFOLIO_MGR] -= 3.0
 
             # ═══════════════════════════════════════════════════════════════
-            # LAYER 3: End-of-Episode Activity Gate
+            # LAYER 3: End-of-Episode Activity Gate (Trader Specific)
             # ═══════════════════════════════════════════════════════════════
-            # If agent traded less than 15% of steps, crush all rewards
             trade_ratio = self._trades_executed / max(self._current_step, 1)
             if trade_ratio < 0.15:
-                inactivity_slam = -5.0 * (1.0 - trade_ratio / 0.15)
-                for ag in self.agents:
-                    self.rewards[ag] = float(self.rewards.get(ag, 0.0) + inactivity_slam)
+                # Issue 5: Reduced inactivity slam
+                inactivity_slam = -2.0 * (1.0 - trade_ratio / 0.15)
+                if TRADER in self.rewards:
+                    self.rewards[TRADER] = float(self.rewards[TRADER] + inactivity_slam)
 
         # Rebuild observations for the next cycle
         self._generate_observations()
@@ -602,6 +622,7 @@ class MultiAgentTradingEnv(AECEnv):
             "proposed": {"direction": trade["original_direction"], "size": trade["original_size"]},
             "executed": {"direction": direction, "size": size, "sl": sl_input, "tp": tp_input},
             "interventions": trade["interventions"],
+            "assists": trade.get("assists", []),
             "was_compliant": len(trade["interventions"]) == 0,
             "rm_message": self._rm_message.tolist(),
             "pm_message": self._pm_message.tolist(),
@@ -609,6 +630,14 @@ class MultiAgentTradingEnv(AECEnv):
         self._governance_log.append(gov_record)
 
         # Expose info for the Trader (most info-rich agent)
+        normalized_profit  = float(np.clip((profit + 1.0) / 2.0, 0.0, 1.0))
+        normalized_sharpe  = float(np.clip((self._risk.sharpe_ratio() + 2.0) / 4.0, 0.0, 1.0))
+        grade = float(compute_grade({
+            "profit": normalized_profit,
+            "sharpe": normalized_sharpe,
+            "drawdown": float(self._risk.max_drawdown),
+        }))
+
         self.infos[TRADER] = {
             "step": self._current_step,
             "portfolio_value": float(new_value),
@@ -641,13 +670,22 @@ class MultiAgentTradingEnv(AECEnv):
             self._current_regime_label = self._regime_labels[step]
         from env.regime_engine import REGIME_TO_ID, NUM_REGIMES
         regime_id = REGIME_TO_ID.get(self._current_regime_label, 0)
-        regime_indicator = np.array([regime_id / max(NUM_REGIMES, 1)], dtype=np.float32)
+        
+        # Issue 12: Increased noise to regime signal to prevent perfect peeking
+        regime_val = regime_id / max(NUM_REGIMES, 1)
+        regime_val += np.random.normal(0, 0.05) 
+        
+        regime_indicator = np.array([np.clip(regime_val, 0.0, 1.0)], dtype=np.float32)
         base_obs_r = np.concatenate([base_obs, regime_indicator])
+
+        # Issue 4: Mask PM override strength as a discrete signal for the trader
+        pm_msg_masked = self._pm_message.copy()
+        pm_msg_masked[1] = 1.0 if pm_msg_masked[1] > 0.7 else 0.0
 
         self._observations = {
             RISK_MANAGER:  base_obs_r.copy(),
             PORTFOLIO_MGR: np.concatenate([base_obs_r, self._rm_message]),
-            TRADER:        np.concatenate([base_obs_r, self._rm_message, self._pm_message]),
+            TRADER:        np.concatenate([base_obs_r, self._rm_message, pm_msg_masked]),
         }
 
     # ───────────────────────────────────────────────────────────────────────────
@@ -682,13 +720,14 @@ class MultiAgentTradingEnv(AECEnv):
         self._prev_portfolio_value = self.initial_cash
 
         # PZ state dictionaries
-        self._observations = {ag: np.zeros(self.observation_spaces[ag].shape, dtype=np.float32)
+        self._observations = {ag: np.zeros(self.observation_spaces[ag].shape or (0,), dtype=np.float32)
                               for ag in ALL_AGENTS}
+
 
     def _accumulate_rewards(self):
         """Add the current step rewards into PettingZoo cumulative tracking."""
         for ag in self.agents:
-            self._cumulative_rewards[ag] += self.rewards[ag]
+            self._cumulative_rewards[ag] += self.rewards.get(ag, 0.0)
 
     def _execute_trade(self, direction: int, size: float, sl: float, tp: float, current_price: float) -> bool:
         """Execute trade, applying commissions and updating portfolio. Return True if trade executed."""
@@ -827,8 +866,11 @@ class MultiAgentTradingEnv(AECEnv):
         self.rewards = {ag: 0.0 for ag in self.agents}
 
     def _was_dead_step(self, action):
-        self._clear_rewards()
-        self._accumulate_rewards()
+        if action is not None:
+            # PZ expects None for dead steps. Some frameworks might pass something else,
+            # but standard PZ requires None. We'll ensure action is None to satisfy super()
+            action = None
+        super()._was_dead_step(action)
 
     def state(self) -> Dict:
         """Return the full shared environment state (for visualization)."""

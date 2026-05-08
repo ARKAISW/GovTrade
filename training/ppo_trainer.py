@@ -312,14 +312,15 @@ class MultiAgentPPOTrainer:
         progress = episode / total_eps
         
         # Probabilities: [easy, medium, hard]
-        if progress < 0.2:
-            probs = [0.8, 0.15, 0.05]
-        elif progress < 0.5:
-            probs = [0.3, 0.5, 0.2]
-        elif progress < 0.8:
-            probs = [0.1, 0.3, 0.6]
+        # Keep easy regimes more frequent for longer to establish baseline profitable behaviors
+        if progress < 0.3:
+            probs = [0.85, 0.10, 0.05]
+        elif progress < 0.6:
+            probs = [0.50, 0.35, 0.15]
+        elif progress < 0.85:
+            probs = [0.20, 0.40, 0.40]
         else:
-            probs = [0.05, 0.15, 0.8]
+            probs = [0.10, 0.20, 0.70]
             
         return np.random.choice(["easy", "medium", "hard"], p=probs)
 
@@ -379,14 +380,28 @@ class MultiAgentPPOTrainer:
                     obs_t = torch.FloatTensor(obs).unsqueeze(0).to(self.device)
                     result = self.trader.network.get_action_and_value(obs_t)
 
+                current_price = env._market.current_price()
+                direction = int(result["direction"].item())
+                sl_off = float(result["sl_offset"].item())
+                tp_off = float(result["tp_offset"].item())
+                
+                sl_val = 0.0
+                tp_val = 0.0
+                if direction == 1:
+                    sl_val = current_price * (1.0 - sl_off)
+                    tp_val = current_price * (1.0 + tp_off)
+                elif direction == 2:
+                    sl_val = current_price * (1.0 + sl_off)
+                    tp_val = current_price * (1.0 - tp_off)
+
                 action = {
-                    "direction": int(result["direction"].item()),
+                    "direction": direction,
                     "size": np.array([float(result["size"].item())], dtype=np.float32),
-                    "sl": np.array([0.0], dtype=np.float32),
-                    "tp": np.array([0.0], dtype=np.float32),
+                    "sl": np.array([sl_val], dtype=np.float32),
+                    "tp": np.array([tp_val], dtype=np.float32),
                 }
                 stored_action = {
-                    "direction": int(result["direction"].item()),
+                    "direction": direction,
                     "raw_cont": result["raw_cont"].squeeze(0).cpu().numpy(),
                 }
                 buffers[agent].add(

@@ -17,7 +17,7 @@ what makes this project publishable.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from enum import Enum
 
 import numpy as np
@@ -37,7 +37,7 @@ class FailureEvent:
     failure_type: str
     step: int
     severity: FailureSeverity
-    details: Dict[str, float] = field(default_factory=dict)
+    details: Dict[str, Any] = field(default_factory=dict)
 
 
 class GovernanceFailureTaxonomy:
@@ -86,6 +86,11 @@ class GovernanceFailureTaxonomy:
        RM always outputs size_limit < 0.05 regardless of conditions.
        Severity: MEDIUM
        Impact: Renders governance meaningless (always blocking).
+
+    9. BANKRUPTCY
+       Portfolio value falls below 10% of initial capital.
+       Severity: CRITICAL
+       Impact: Total loss of capital, definitive governance failure.
     ─────────────────────────────────────────────────────────────
     """
 
@@ -96,6 +101,7 @@ class GovernanceFailureTaxonomy:
         self._recent_values: List[float] = []
         self._low_alloc_streak: int = 0
         self._stress_unresponded_steps: int = 0
+        self._initial_value: float = 0.0
 
     def check_step(
         self,
@@ -107,6 +113,9 @@ class GovernanceFailureTaxonomy:
         regime_label: str,
     ):
         """Check for governance failures at this step."""
+        if not self._initial_value and portfolio_value > 0:
+            self._initial_value = portfolio_value
+
         self._recent_rm_actions.append(rm_action.copy())
         self._recent_pm_overrides.append(float(pm_action[1]))
         self._recent_values.append(portfolio_value)
@@ -114,6 +123,15 @@ class GovernanceFailureTaxonomy:
         size_limit = float(rm_action[0])
         cap_alloc = float(pm_action[0])
         override = float(pm_action[1])
+
+        # 9. BANKRUPTCY
+        if self._initial_value > 0 and portfolio_value < self._initial_value * 0.10:
+            self.failures.append(FailureEvent(
+                failure_type="bankruptcy",
+                step=step,
+                severity=FailureSeverity.CRITICAL,
+                details={"portfolio_value": portfolio_value, "initial_value": self._initial_value},
+            ))
 
         # 1. OVERREACTION
         if size_limit < 0.2 and drawdown < 0.05:

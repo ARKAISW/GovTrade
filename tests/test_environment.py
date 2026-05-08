@@ -175,7 +175,7 @@ class TestAntiRewardHacking:
         })
 
         gov = env.infos[TRADER]["governance"]
-        auto_sl = [item for item in gov["interventions"] if item["type"] == "auto_sl"]
+        auto_sl = [item for item in gov.get("assists", []) if item["type"] == "auto_sl"]
         assert auto_sl
         assert gov["executed"]["sl"] == pytest.approx(price * 0.98)
 

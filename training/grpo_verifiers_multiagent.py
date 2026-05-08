@@ -50,7 +50,8 @@ def risk_reward_func_multiagent(prompts, completions, **kwargs) -> list[float]:
                 continue
 
             size = float(data.get("size", 0.0))
-            score = 0.7 if size <= limit else 0.0
+            # Slightly reduced risk compliance score
+            score = 0.4 if size <= limit else 0.0
 
             rewards.append(score)
         except Exception:
@@ -83,17 +84,18 @@ def governance_reward_func_multiagent(prompts, completions, **kwargs) -> list[fl
             effective_limit = min(limit, pm_cap) if pm_cap is not None else limit
 
             score = 0.0
+            # Reduced governance scores to balance against profit verifier
             if size <= effective_limit:
-                score += 0.40
+                score += 0.30
                 if 0 < size <= effective_limit * 0.8:
-                    score += 0.20
+                    score += 0.10
             else:
-                score -= 0.50
+                score -= 0.40
 
             if direction != 0 and size >= 0.01:
-                score += 0.20
+                score += 0.10
 
-            rewards.append(float(np.clip(score, 0.0, 1.0)))
+            rewards.append(float(np.clip(score, -1.0, 1.0)))
         except Exception:
             rewards.append(0.0)
 
