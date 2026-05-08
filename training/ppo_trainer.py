@@ -110,7 +110,7 @@ class RolloutBuffer:
 # ─── PPO Update Logic ──────────────────────────────────────────────────────────
 
 def ppo_update(
-    network: nn.Module,
+    network: Any,
     optimizer: optim.Optimizer,
     buffer: RolloutBuffer,
     clip_epsilon: float = 0.2,
@@ -122,17 +122,7 @@ def ppo_update(
     agent_type: str = "continuous",
     device: str = "cpu",
 ) -> Dict[str, float]:
-    """Perform PPO update on a single agent's network.
-
-    Args:
-        network: The agent's ActorCriticMLP or TraderActorCritic.
-        optimizer: The agent's optimizer.
-        buffer: Filled rollout buffer with computed GAE advantages.
-        agent_type: "continuous" for RM/PM, "mixed" for Trader.
-
-    Returns:
-        Dictionary of training metrics (loss components).
-    """
+    """Perform PPO update on a single agent's network."""
     if len(buffer) == 0 or buffer.advantages is None:
         return {"policy_loss": 0.0, "value_loss": 0.0, "entropy": 0.0}
 
@@ -142,14 +132,13 @@ def ppo_update(
     advantages_t = torch.FloatTensor(buffer.advantages).to(device)
     returns_t = torch.FloatTensor(buffer.returns).to(device)
 
-    # Normalize advantages (PPO best practice)
+    # Normalize advantages
     advantages_t = (advantages_t - advantages_t.mean()) / (advantages_t.std() + 1e-8)
 
     metrics_accum = defaultdict(list)
     n = len(buffer)
 
     for _ in range(ppo_epochs):
-        # Shuffle and create minibatches
         indices = np.arange(n)
         np.random.shuffle(indices)
 
@@ -163,7 +152,6 @@ def ppo_update(
             mb_ret = returns_t[mb_idx]
 
             if agent_type == "continuous":
-                # Reconstruct actions
                 actions_arr = np.array([buffer.actions[i] for i in mb_idx])
                 mb_actions = torch.FloatTensor(actions_arr).to(device)
 
@@ -171,13 +159,18 @@ def ppo_update(
                     mb_obs, action=mb_actions,
                 )
             else:
-                # Mixed: direction + continuous
+                # Use list comprehension with explicit casting to avoid linter "red"
                 mb_dir = torch.LongTensor(
-                    [buffer.actions[i]["direction"] for i in mb_idx]
+                    [int(buffer.actions[i]["direction"]) for i in mb_idx]
                 ).to(device)
-                mb_cont = torch.FloatTensor(
-                    [buffer.actions[i].get("raw_cont", [0, 0, 0]) for i in mb_idx]
-                ).to(device)
+                
+                # Use .get() safely and ensure it returns a list/array
+                cont_data = []
+                for i in mb_idx:
+                    act = buffer.actions[i]
+                    raw = act.get("raw_cont", [0.0, 0.0, 0.0])
+                    cont_data.append(raw)
+                mb_cont = torch.FloatTensor(np.array(cont_data)).to(device)
 
                 result = network.get_action_and_value(
                     mb_obs, action_dir=mb_dir, action_cont=mb_cont,

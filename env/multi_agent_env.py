@@ -22,11 +22,21 @@ from gymnasium import spaces
 
 from pettingzoo import AECEnv
 
+# ── PettingZoo Version Compatibility ──────────────────────────────────
 try:
-    import pettingzoo.utils.agent_selector as asel
-    AgentSelectorClass = asel.AgentSelector
-except (ImportError, AttributeError):
-    from pettingzoo.utils import AgentSelector as AgentSelectorClass
+    # Pattern for PettingZoo 1.24.x (Common on Kaggle)
+    from pettingzoo.utils.agent_selector import AgentSelector as AgentSelectorClass
+except ImportError:
+    try:
+        # Pattern for PettingZoo 1.25.0+
+        from pettingzoo.utils import AgentSelector as AgentSelectorClass
+    except ImportError:
+        # Fallback/Emergency pattern
+        import pettingzoo.utils.agent_selector as asel
+        if hasattr(asel, "AgentSelector"):
+            AgentSelectorClass = asel.AgentSelector
+        else:
+            AgentSelectorClass = asel # In some versions, the module itself is the class
 
 from env.state import MarketState, PortfolioState, RiskState, get_observation
 from env.reward import compute_raw_reward, normalize_reward, compute_grade
@@ -142,7 +152,7 @@ class MultiAgentTradingEnv(AECEnv):
         }
 
         # ── Internal state (reset before first use) ─────────────────────────
-        self._agent_selector = asel.AgentSelector(ALL_AGENTS)
+        self._agent_selector = AgentSelectorClass(ALL_AGENTS)
         self.agent_selection = ALL_AGENTS[0]
         self.rewards = {ag: 0.0 for ag in ALL_AGENTS}
         self._cumulative_rewards = {ag: 0.0 for ag in ALL_AGENTS}
