@@ -36,15 +36,14 @@ def smooth(values: list[float], window: int = 10) -> np.ndarray:
 
 
 def plot_per_agent_rewards(metrics: dict, output_dir: Path):
-    """Plot per-agent discounted returns on same axes."""
+    """Plot total return and violation rate over training."""
     import matplotlib.pyplot as plt
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax1 = plt.subplots(figsize=(10, 6))
 
     episodes = metrics.get("episode", [])
-    trader_r = metrics.get("trader_return", [])
-    rm_r = metrics.get("rm_return", [])
-    pm_r = metrics.get("pm_return", [])
+    total_return = metrics.get("total_return", [])
+    violation_rate = metrics.get("violation_rate", [])
 
     if not episodes:
         print("  No episode data found, skipping reward plot.")
@@ -52,69 +51,71 @@ def plot_per_agent_rewards(metrics: dict, output_dir: Path):
 
     window = max(1, len(episodes) // 20)
 
-    ax.plot(episodes[:len(smooth(trader_r, window))], smooth(trader_r, window),
-            label="Trader", color="#2ecc71", linewidth=2)
-    ax.plot(episodes[:len(smooth(rm_r, window))], smooth(rm_r, window),
-            label="Risk Manager", color="#e74c3c", linewidth=2)
-    ax.plot(episodes[:len(smooth(pm_r, window))], smooth(pm_r, window),
-            label="Portfolio Manager", color="#3498db", linewidth=2)
+    ax1.plot(episodes[:len(smooth(total_return, window))], smooth(total_return, window),
+            label="Total Return", color="#2ecc71", linewidth=2)
+    ax1.set_xlabel("Episode", fontsize=12)
+    ax1.set_ylabel("Portfolio Return", fontsize=12, color="#2ecc71")
+    ax1.tick_params(axis='y', labelcolor="#2ecc71")
 
-    ax.set_xlabel("Episode", fontsize=12)
-    ax.set_ylabel("Discounted Return", fontsize=12)
-    ax.set_title("QuantHive: Per-Agent Reward Curves (Multi-Agent Training)", fontsize=14)
-    ax.legend(fontsize=11)
-    ax.grid(True, alpha=0.3)
+    ax2 = ax1.twinx()
+    ax2.plot(episodes[:len(smooth(violation_rate, window))], smooth(violation_rate, window),
+            label="Violation Rate", color="#e74c3c", linewidth=2, alpha=0.6)
+    ax2.set_ylabel("Violation Rate", fontsize=12, color="#e74c3c")
+    ax2.tick_params(axis='y', labelcolor="#e74c3c")
+
+    plt.title("QuantHive: Performance & Compliance Over Training", fontsize=14)
+    ax1.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    path = output_dir / "reward_curve.png"
+    path = output_dir / "performance_compliance.png"
     fig.savefig(path, dpi=150)
     plt.close(fig)
     print(f"  Saved: {path}")
 
 
 def plot_grade_and_sharpe(metrics: dict, output_dir: Path):
-    """Plot grade and Sharpe ratio progression."""
+    """Plot Sharpe ratio and max drawdown progression."""
     import matplotlib.pyplot as plt
 
     episodes = metrics.get("episode", [])
-    grades = metrics.get("grade", [])
-    sharpes = metrics.get("sharpe", [])
+    sharpes = metrics.get("sharpe_ratio", [])
+    drawdowns = metrics.get("max_drawdown", [])
 
-    if not episodes or not grades:
-        print("  No grade data found, skipping grade plot.")
+    if not episodes:
+        print("  No data found, skipping sharpe/dd plot.")
         return
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
     window = max(1, len(episodes) // 20)
 
-    ax1.plot(episodes[:len(smooth(grades, window))], smooth(grades, window),
-             color="#9b59b6", linewidth=2)
+    ax1.plot(episodes[:len(smooth(drawdowns, window))], smooth(drawdowns, window),
+             color="#e74c3c", linewidth=2)
     ax1.set_xlabel("Episode")
-    ax1.set_ylabel("Grade [0, 1]")
-    ax1.set_title("Portfolio Grade Over Training")
+    ax1.set_ylabel("Max Drawdown")
+    ax1.set_title("Portfolio Risk (Drawdown)")
     ax1.grid(True, alpha=0.3)
 
     ax2.plot(episodes[:len(smooth(sharpes, window))], smooth(sharpes, window),
              color="#f39c12", linewidth=2)
     ax2.set_xlabel("Episode")
     ax2.set_ylabel("Sharpe Ratio")
-    ax2.set_title("Sharpe Ratio Over Training")
+    ax2.set_title("Risk-Adjusted Return (Sharpe)")
     ax2.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    path = output_dir / "grade_progression.png"
+    path = output_dir / "risk_metrics.png"
     fig.savefig(path, dpi=150)
     plt.close(fig)
     print(f"  Saved: {path}")
 
 
 def plot_baseline_comparison(metrics: dict, output_dir: Path):
-    """Plot random baseline vs trained agent performance."""
+    """Compare early vs late training performance."""
     import matplotlib.pyplot as plt
 
     episodes = metrics.get("episode", [])
-    trader_r = metrics.get("trader_return", [])
-    grades = metrics.get("grade", [])
+    total_return = metrics.get("total_return", [])
+    sharpes = metrics.get("sharpe_ratio", [])
 
     if not episodes or len(episodes) < 20:
         print("  Not enough data for baseline comparison, skipping.")
@@ -124,18 +125,16 @@ def plot_baseline_comparison(metrics: dict, output_dir: Path):
     first_20 = slice(0, min(20, n))
     last_20 = slice(max(0, n - 20), n)
 
-    metrics_names = ["Trader Return", "Grade", "Max Drawdown", "Sharpe"]
+    metrics_names = ["Total Return", "Sharpe", "Max Drawdown"]
     early = [
-        np.mean(trader_r[first_20]),
-        np.mean(grades[first_20]),
+        np.mean(total_return[first_20]),
+        np.mean(sharpes[first_20]),
         np.mean(metrics.get("max_drawdown", [0])[first_20]),
-        np.mean(metrics.get("sharpe", [0])[first_20]),
     ]
     late = [
-        np.mean(trader_r[last_20]),
-        np.mean(grades[last_20]),
+        np.mean(total_return[last_20]),
+        np.mean(sharpes[last_20]),
         np.mean(metrics.get("max_drawdown", [0])[last_20]),
-        np.mean(metrics.get("sharpe", [0])[last_20]),
     ]
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -146,7 +145,7 @@ def plot_baseline_comparison(metrics: dict, output_dir: Path):
     ax.bar(x + width / 2, late, width, label="Late (last 20 eps)", color="#2ecc71", alpha=0.8)
 
     ax.set_ylabel("Value")
-    ax.set_title("QuantHive: Baseline vs Trained Performance")
+    ax.set_title("QuantHive: Early vs Trained Performance")
     ax.set_xticks(x)
     ax.set_xticklabels(metrics_names)
     ax.legend()

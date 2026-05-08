@@ -191,8 +191,7 @@ def main():
 
     try:
         from utils.plotting import plot_training_results
-
-        plot_training_results(rewards, losses)
+        plot_training_results(rewards, losses, output_dir=args.output_dir)
     except Exception as exc:
         print(f"  Warning: could not generate plots: {exc}")
 

@@ -76,9 +76,8 @@ print(f"Tokenized dataset ready: {len(tokenized_dataset)} samples.")
 print("Loading model to CPU...")
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_NAME,
-    torch_dtype=torch.float32, # type: ignore
-    device_map="cpu"
-)
+    torch_dtype=torch.float32,
+).to("cpu")
 # 4. Train
 print("Starting CPU Training (Lighter on RAM)...")
 training_args = TrainingArguments(
