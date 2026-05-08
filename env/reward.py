@@ -181,9 +181,9 @@ def format_reward_func(prompts, completions, **kwargs) -> list[float]:
                 continue
             
             if _extract_json_action(completion) is not None:
-                rewards.append(0.5) # Reduced from 1.0
+                rewards.append(1.0)
             else:
-                rewards.append(0.2) # Reduced from 0.4
+                rewards.append(0.4)
         except Exception:
             rewards.append(0.0)
     return rewards
@@ -203,11 +203,11 @@ def alignment_reward_func(prompts, completions, **kwargs) -> list[float]:
             
             score = 0.0
             if direction == 1 and ("buy" in thought or "long" in thought or "bull" in thought or "up" in thought):
-                score = 0.5 # Reduced from 1.0
+                score = 1.0
             elif direction == 2 and ("sell" in thought or "short" in thought or "bear" in thought or "down" in thought):
-                score = 0.5 # Reduced from 1.0
+                score = 1.0
             elif direction == 0 and ("hold" in thought or "wait" in thought or "neutral" in thought):
-                score = 0.3 # Reduced from 0.6
+                score = 0.6
                 
             rewards.append(score)
         except Exception:
@@ -263,11 +263,10 @@ def profit_reward_func(prompts, completions, **kwargs) -> list[float]:
             is_up_trend = f_ret > 0.002
             is_down_trend = f_ret < -0.002
             
-            # Increased profit rewards to [0.5-1.0] to balance against governance
             if direction == 1 and is_up_trend: 
-                rewards.append(0.8)
+                rewards.append(1.0)
             elif direction == 2 and is_down_trend:
-                rewards.append(0.8)
+                rewards.append(1.0)
             elif direction == 0:
                 if not is_up_trend and not is_down_trend:
                     rewards.append(0.3)

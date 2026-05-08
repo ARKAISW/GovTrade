@@ -331,6 +331,13 @@ class MultiAgentPPOTrainer:
         step_count = 0
         final_info = {}
 
+        def assign_cycle_rewards(done: bool = False) -> None:
+            for ag in ALL_AGENTS:
+                if len(buffers[ag]) > 0:
+                    buffers[ag].rewards[-1] = float(env.rewards.get(ag, 0.0))
+                    if done:
+                        buffers[ag].dones[-1] = True
+
         while env.agents and step_count < self.max_steps * 3:
             agent = env.agent_selection
             obs = env.observe(agent)
@@ -351,7 +358,7 @@ class MultiAgentPPOTrainer:
 
                 action = action_np
                 buffers[agent].add(
-                    obs, raw_action, env.rewards.get(agent, 0.0),
+                    obs, raw_action, 0.0,
                     value.item(), log_prob.item(), False,
                 )
 
@@ -364,7 +371,7 @@ class MultiAgentPPOTrainer:
 
                 action = action_np
                 buffers[agent].add(
-                    obs, raw_action, env.rewards.get(agent, 0.0),
+                    obs, raw_action, 0.0,
                     value.item(), log_prob.item(), False,
                 )
 
@@ -398,7 +405,7 @@ class MultiAgentPPOTrainer:
                     "raw_cont": result["raw_cont"].squeeze(0).cpu().numpy(),
                 }
                 buffers[agent].add(
-                    obs, stored_action, env.rewards.get(agent, 0.0),
+                    obs, stored_action, 0.0,
                     result["value"].item(), result["log_prob"].item(), False,
                 )
 
@@ -407,6 +414,12 @@ class MultiAgentPPOTrainer:
 
             # Track governance metrics after trader acts (full cycle)
             if agent == TRADER:
+                episode_done = all(
+                    env.terminations.get(ag, False) or env.truncations.get(ag, False)
+                    for ag in ALL_AGENTS
+                )
+                assign_cycle_rewards(done=episode_done)
+
                 info = env.infos.get(TRADER, {})
                 governance = info.get("governance", {})
                 gov_metrics.update_step(
@@ -416,16 +429,16 @@ class MultiAgentPPOTrainer:
                     rm_action=env._rm_message,
                     pm_action=env._pm_message,
                     regime_label=getattr(env, "_current_regime_label", ""),
-                    current_drawdown=info.get("max_drawdown", 0.0),
+                    current_drawdown=info.get("current_drawdown", info.get("max_drawdown", 0.0)),
                 )
+
+                if episode_done:
+                    final_info = info
+                    break
 
             if not env.agents:
                 # Capture final terminal rewards (e.g., bankruptcy penalties, activity gates)
-                for ag in ALL_AGENTS:
-                    if len(buffers[ag]) > 0:
-                        buffers[ag].rewards[-1] = env.rewards.get(ag, 0.0)
-                        buffers[ag].dones[-1] = True
-                
+                assign_cycle_rewards(done=True)
                 final_info = env.infos.get(TRADER, {})
                 break
 
@@ -580,12 +593,15 @@ class MultiAgentPPOTrainer:
 
     def _save_checkpoint(self, episode: int, prefix: str = ""):
         """Save model checkpoints."""
-        ckpt_dir = self.output_dir / f"{prefix}checkpoint_ep{episode}"
-        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            ckpt_dir = self.output_dir / f"{prefix}checkpoint_ep{episode}"
+            ckpt_dir.mkdir(parents=True, exist_ok=True)
 
-        torch.save(self.rm.state_dict(), ckpt_dir / "risk_manager.pt")
-        torch.save(self.pm.state_dict(), ckpt_dir / "portfolio_manager.pt")
-        torch.save(self.trader.state_dict(), ckpt_dir / "trader.pt")
+            torch.save(self.rm.state_dict(), ckpt_dir / "risk_manager.pt")
+            torch.save(self.pm.state_dict(), ckpt_dir / "portfolio_manager.pt")
+            torch.save(self.trader.state_dict(), ckpt_dir / "trader.pt")
+        except (OSError, RuntimeError) as exc:
+            print(f"Warning: checkpoint save skipped for episode {episode}: {exc}")
 
     def load_checkpoint(self, ckpt_dir_str: str):
         """Load model checkpoints to resume training."""
@@ -606,8 +622,11 @@ class MultiAgentPPOTrainer:
                 float(x) if isinstance(x, (np.floating, np.integer, float, int)) else str(x)
                 for x in v
             ]
-        with open(self.output_dir / "training_metrics.json", "w") as f:
-            json.dump(serialized, f, indent=2)
+        try:
+            with open(self.output_dir / "training_metrics.json", "w") as f:
+                json.dump(serialized, f, indent=2)
+        except OSError as exc:
+            print(f"Warning: metrics save skipped: {exc}")
 
 
 # ─── Entry Point ───────────────────────────────────────────────────────────────

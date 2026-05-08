@@ -24,19 +24,14 @@ from pettingzoo import AECEnv
 
 # ── PettingZoo Version Compatibility ──────────────────────────────────
 try:
-    # Pattern for PettingZoo 1.24.x (Common on Kaggle)
-    from pettingzoo.utils.agent_selector import AgentSelector as AgentSelectorClass
+    # Pattern for PettingZoo 1.25.0+
+    from pettingzoo.utils import AgentSelector as AgentSelectorClass
 except ImportError:
     try:
-        # Pattern for PettingZoo 1.25.0+
-        from pettingzoo.utils import AgentSelector as AgentSelectorClass
+        # Pattern for PettingZoo 1.24.x (Common on Kaggle)
+        from pettingzoo.utils.agent_selector import AgentSelector as AgentSelectorClass
     except ImportError:
-        # Fallback/Emergency pattern
-        import pettingzoo.utils.agent_selector as asel
-        if hasattr(asel, "AgentSelector"):
-            AgentSelectorClass = asel.AgentSelector
-        else:
-            AgentSelectorClass = asel # In some versions, the module itself is the class
+        raise ImportError("Could not import AgentSelector from PettingZoo. Please check your PettingZoo version.")
 
 from env.state import MarketState, PortfolioState, RiskState, get_observation
 from env.reward import compute_raw_reward, normalize_reward, compute_grade
@@ -118,6 +113,8 @@ class MultiAgentTradingEnv(AECEnv):
         self.initial_cash = initial_cash
         self.commission = commission
         self.ticket_fee = float(ticket_fee)
+        self.margin_call_threshold = 0.50
+        self.episode_floor_fraction = 0.50
         self.max_steps = max_steps or (len(self.df) - 1)
         self._current_regime_label = self._regime_labels[0] if self._regime_labels else ""
 
@@ -314,7 +311,9 @@ class MultiAgentTradingEnv(AECEnv):
 
         interventions: List[Dict] = []
 
-        if direction != 0 and size > rm_size_limit:
+        is_opening_or_adding = (direction == 1 and pos >= 0) or (direction == 2 and pos <= 0)
+
+        if is_opening_or_adding and size > rm_size_limit:
             interventions.append({
                 "agent": "RiskManager",
                 "type":  "size_clamp",
@@ -323,7 +322,6 @@ class MultiAgentTradingEnv(AECEnv):
             })
             size = rm_size_limit
 
-        is_opening_or_adding = (direction == 1 and pos >= 0) or (direction == 2 and pos <= 0)
         if is_opening_or_adding and not rm_allow_new:
             interventions.append({
                 "agent": "RiskManager",
@@ -334,24 +332,34 @@ class MultiAgentTradingEnv(AECEnv):
 
         # Issue 11: Handle both long and short force-reductions
         if rm_force_reduce:
-            if direction == 1 and pos >= 0:
+            if pos > 1e-8 and direction != 2:
                 interventions.append({
                     "agent": "RiskManager",
                     "type":  "force_reduce",
                     "reason": "RM signaling to reduce longs",
                 })
                 direction = 2  # Flip to reduce
-            elif direction == 2 and pos <= 0:
+            elif pos < -1e-8 and direction != 1:
                 interventions.append({
                     "agent": "RiskManager",
                     "type":  "force_reduce_short",
                     "reason": "RM signaling to reduce shorts",
                 })
                 direction = 1  # Flip to reduce (cover)
+            elif abs(pos) <= 1e-8 and direction != 0:
+                interventions.append({
+                    "agent": "RiskManager",
+                    "type":  "force_reduce_flat",
+                    "reason": "RM blocked new exposure while portfolio is flat",
+                })
+                direction = 0
+                size = 0.0
+
+        is_opening_or_adding = (direction == 1 and pos >= 0) or (direction == 2 and pos <= 0)
 
         # ── Apply Portfolio Manager override ────────────────────────────────
         cap_alloc  = self._pm_capital_allocation
-        if direction != 0 and size > cap_alloc:
+        if is_opening_or_adding and size > cap_alloc:
             interventions.append({
                 "agent": "PortfolioManager",
                 "type":  "capital_cap",
@@ -485,9 +493,40 @@ class MultiAgentTradingEnv(AECEnv):
         self._current_step += 1
         self._market.current_step = self._current_step
 
+        margin_called = False
+
         # Update risk state
         new_price = self._market.current_price() if self._current_step < len(self.df) else current_price
+        post_move_sl_tp_hit = self._check_sl_tp(new_price)
+        sl_tp_hit = bool(sl_tp_hit or post_move_sl_tp_hit)
         new_value = self._portfolio.total_value(new_price, self.ticker)
+
+        pos_qty_after_move = self._portfolio.positions.get(self.ticker, 0.0)
+        if pos_qty_after_move < 0:
+            short_pnl = self._portfolio.unrealized_pnl(new_price, self.ticker)
+            if short_pnl < -(self.initial_cash * self.margin_call_threshold):
+                abs_qty = abs(pos_qty_after_move)
+                avg_cost = self._portfolio.avg_costs.get(self.ticker, new_price)
+                cover_cost = abs_qty * new_price * (1 + self.commission) + self.ticket_fee
+                margin_return = abs_qty * avg_cost
+                self._portfolio.cash += margin_return - cover_cost
+                self._portfolio.cash = max(self._portfolio.cash, 0.0)
+                self._portfolio.positions[self.ticker] = 0.0
+                self._portfolio.avg_costs[self.ticker] = 0.0
+                self._portfolio.stop_losses[self.ticker] = None
+                self._portfolio.take_profits[self.ticker] = None
+                self._risk.trade_count += 1
+                margin_called = True
+                trade["interventions"].append({
+                    "agent": "ComplianceOfficer",
+                    "type": "margin_call",
+                    "reason": (
+                        f"Unrealized short loss exceeded "
+                        f"{self.margin_call_threshold:.0%} threshold"
+                    ),
+                })
+                new_value = self._portfolio.total_value(new_price, self.ticker)
+
         self._risk.update(new_value)
         self._episode_values.append(new_value)
 
@@ -500,7 +539,7 @@ class MultiAgentTradingEnv(AECEnv):
             drawdown=self._risk.current_drawdown,
             volatility=self._risk.return_volatility(),
             sharpe=self._risk.sharpe_ratio(),
-            trade_count=int(traded or sl_tp_hit),
+            trade_count=int(traded or sl_tp_hit or margin_called),
             direction=direction,
             price_trend=price_trend,
             trade_size=size,
@@ -598,9 +637,11 @@ class MultiAgentTradingEnv(AECEnv):
         self.rewards[RISK_MANAGER] = normalize_reward(rm_reward_final_raw)
 
         # ── Termination Check ───────────────────────────────────────────────
+        risk_stop = new_value < self.initial_cash * self.episode_floor_fraction
         blown_up = new_value < self.initial_cash * 0.10
         terminated = (
             self._current_step >= self.max_steps or
+            risk_stop or
             blown_up
         )
         if terminated:
@@ -612,6 +653,10 @@ class MultiAgentTradingEnv(AECEnv):
                 if TRADER in self.rewards: self.rewards[TRADER] -= 10.0
                 if RISK_MANAGER in self.rewards: self.rewards[RISK_MANAGER] -= 5.0
                 if PORTFOLIO_MGR in self.rewards: self.rewards[PORTFOLIO_MGR] -= 3.0
+            elif risk_stop:
+                if TRADER in self.rewards: self.rewards[TRADER] -= 4.0
+                if RISK_MANAGER in self.rewards: self.rewards[RISK_MANAGER] -= 2.0
+                if PORTFOLIO_MGR in self.rewards: self.rewards[PORTFOLIO_MGR] -= 1.5
 
             # ═══════════════════════════════════════════════════════════════
             # LAYER 3: End-of-Episode Activity Gate (Trader Specific)
@@ -654,6 +699,7 @@ class MultiAgentTradingEnv(AECEnv):
             "cash": float(self._portfolio.cash),
             "pnl": float(new_value - self.initial_cash),
             "pnl_pct": float(profit),
+            "current_drawdown": float(self._risk.current_drawdown),
             "max_drawdown": float(self._risk.max_drawdown),
             "sharpe_ratio": float(self._risk.sharpe_ratio()),
             "grade": grade,
@@ -824,12 +870,14 @@ class MultiAgentTradingEnv(AECEnv):
         if abs(pos_qty) < 1e-8:
             return False
 
-        hit = False
+        exit_price: Optional[float] = None
         if pos_qty > 0:
-            if sl and current_price <= sl: hit = True
-            if tp and current_price >= tp: hit = True
-            if hit:
-                revenue = pos_qty * current_price * (1 - self.commission) - self.ticket_fee
+            if sl is not None and current_price <= sl:
+                exit_price = sl
+            elif tp is not None and current_price >= tp:
+                exit_price = tp
+            if exit_price is not None:
+                revenue = pos_qty * exit_price * (1 - self.commission) - self.ticket_fee
                 self._portfolio.cash += revenue
                 self._portfolio.positions[ticker] = 0.0
                 self._portfolio.avg_costs[ticker] = 0.0
@@ -838,11 +886,13 @@ class MultiAgentTradingEnv(AECEnv):
                 self._risk.trade_count += 1
         elif pos_qty < 0:
             abs_qty = abs(pos_qty)
-            if sl and current_price >= sl: hit = True
-            if tp and current_price <= tp: hit = True
-            if hit:
-                avg_cost   = self._portfolio.avg_costs.get(ticker, current_price)
-                cover_cost = abs_qty * current_price * (1 + self.commission) + self.ticket_fee
+            if sl is not None and current_price >= sl:
+                exit_price = sl
+            elif tp is not None and current_price <= tp:
+                exit_price = tp
+            if exit_price is not None:
+                avg_cost   = self._portfolio.avg_costs.get(ticker, exit_price)
+                cover_cost = abs_qty * exit_price * (1 + self.commission) + self.ticket_fee
                 margin_ret = abs_qty * avg_cost
                 self._portfolio.cash += margin_ret - cover_cost
                 self._portfolio.positions[ticker] = 0.0
@@ -850,7 +900,7 @@ class MultiAgentTradingEnv(AECEnv):
                 self._portfolio.stop_losses[ticker] = None
                 self._portfolio.take_profits[ticker] = None
                 self._risk.trade_count += 1
-        return hit
+        return exit_price is not None
 
     def _make_dummy_data(self, n: int = 500, difficulty: str = "hard",
                         seed=None, forced_regime=None):

@@ -265,7 +265,7 @@ class TradingEnv(OpenEnvBase, gym.Env):
         info = self._get_info()
         return obs, info
 
-    def _check_sl_tp(self, current_price: float):
+    def _check_sl_tp(self, current_price: float, update_trailing: bool = True):
         """Check if any open position hit SL or TP, and apply trailing updates.
         
         Long positions: SL triggers when price falls to SL; TP when price rises to TP.
@@ -273,24 +273,25 @@ class TradingEnv(OpenEnvBase, gym.Env):
         """
         atr = self.df["atr"].iloc[self.current_step]
         
-        for ticker, position_qty in list(self.portfolio.positions.items()):
-            if abs(position_qty) < 1e-8:
-                continue
+        if update_trailing:
+            for ticker, position_qty in list(self.portfolio.positions.items()):
+                if abs(position_qty) < 1e-8:
+                    continue
 
-            sl = self.portfolio.stop_losses.get(ticker)
-            tp = self.portfolio.take_profits.get(ticker)
-            
-            # --- 1. ATR Trailing Stop Update ---
-            if sl is not None:
-                if position_qty > 0:  # Long
-                    trailing_level = current_price - (atr * 2.0)
-                    if trailing_level > sl and current_price > self.portfolio.avg_costs.get(ticker, current_price):
-                        self.portfolio.stop_losses[ticker] = trailing_level
-                elif position_qty < 0:  # Short
-                    trailing_level = current_price + (atr * 2.0)
-                    if trailing_level < sl and current_price < self.portfolio.avg_costs.get(ticker, current_price):
-                        self.portfolio.stop_losses[ticker] = trailing_level
-            # -----------------------------------
+                sl = self.portfolio.stop_losses.get(ticker)
+                tp = self.portfolio.take_profits.get(ticker)
+                
+                # --- 1. ATR Trailing Stop Update ---
+                if sl is not None:
+                    if position_qty > 0:  # Long
+                        trailing_level = current_price - (atr * 2.0)
+                        if trailing_level > sl and current_price > self.portfolio.avg_costs.get(ticker, current_price):
+                            self.portfolio.stop_losses[ticker] = trailing_level
+                    elif position_qty < 0:  # Short
+                        trailing_level = current_price + (atr * 2.0)
+                        if trailing_level < sl and current_price < self.portfolio.avg_costs.get(ticker, current_price):
+                            self.portfolio.stop_losses[ticker] = trailing_level
+                # -----------------------------------
 
         exit_triggered = False
         exit_price = current_price
@@ -625,6 +626,10 @@ class TradingEnv(OpenEnvBase, gym.Env):
 
         # Update portfolio and risk
         new_price = self.market.current_price()
+        post_move_sl_tp_hit = self._check_sl_tp(new_price, update_trailing=False)
+        if post_move_sl_tp_hit:
+            sl_tp_hit = True
+            step_trade_count += 1
         new_value = self.portfolio.total_value(new_price, self.ticker)
         self.risk.update(new_value)
         self.episode_values.append(new_value)

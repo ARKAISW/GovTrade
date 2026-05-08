@@ -1,14 +1,19 @@
 {
-    "venvPath": ".",
-    "venv": ".venv",
     "include": [
         "."
+    ],
+    "exclude": [
+        "**/__pycache__",
+        ".pytest_cache",
+        "outputs",
+        "checkpoints",
+        "models",
+        "train1"
     ],
     "executionEnvironments": [
         {
             "root": ".",
-            "pythonVersion": "3.12",
-            "pythonExecutable": "./.venv/Scripts/python.exe"
+            "pythonVersion": "3.13"
         }
     ],
     "typeCheckingMode": "basic"

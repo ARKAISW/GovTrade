@@ -260,6 +260,8 @@ class LearnedRiskManager:
 
     def __init__(self, obs_dim: int = 25, device: str = "cpu"):
         self.network = ActorCriticMLP(obs_dim=obs_dim, act_dim=3)
+        with torch.no_grad():
+            self.network.actor_mean.bias.copy_(torch.tensor([-0.4, 2.0, -2.0]))
         self.device = device
         self.network.to(device)
 
@@ -294,6 +296,8 @@ class LearnedPortfolioManager:
 
     def __init__(self, obs_dim: int = 28, device: str = "cpu"):
         self.network = ActorCriticMLP(obs_dim=obs_dim, act_dim=2)
+        with torch.no_grad():
+            self.network.actor_mean.bias.copy_(torch.tensor([0.0, -2.0]))
         self.device = device
         self.network.to(device)
 
@@ -327,6 +331,9 @@ class LearnedTrader:
 
     def __init__(self, obs_dim: int = 30, device: str = "cpu"):
         self.network = TraderActorCritic(obs_dim=obs_dim)
+        with torch.no_grad():
+            self.network.direction_logits.bias.copy_(torch.tensor([1.0, -0.5, -0.5]))
+            self.network.continuous_mean.bias.copy_(torch.tensor([-2.2, 0.5, 0.8]))
         self.device = device
         self.network.to(device)
 
