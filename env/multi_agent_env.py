@@ -24,14 +24,18 @@ from pettingzoo import AECEnv
 
 # ── PettingZoo Version Compatibility ──────────────────────────────────
 try:
-    # Pattern for PettingZoo 1.25.0+
-    from pettingzoo.utils import AgentSelector as AgentSelectorClass
+    from pettingzoo.utils import agent_selector as AgentSelectorClass
 except ImportError:
     try:
-        # Pattern for PettingZoo 1.24.x (Common on Kaggle)
-        from pettingzoo.utils.agent_selector import AgentSelector as AgentSelectorClass
+        from pettingzoo.utils import AgentSelector as AgentSelectorClass
     except ImportError:
-        raise ImportError("Could not import AgentSelector from PettingZoo. Please check your PettingZoo version.")
+        try:
+            from pettingzoo.utils.agent_selector import agent_selector as AgentSelectorClass
+        except ImportError:
+            try:
+                from pettingzoo.utils.agent_selector import AgentSelector as AgentSelectorClass
+            except ImportError:
+                raise ImportError("Could not import AgentSelector or agent_selector from PettingZoo. Please check your PettingZoo version.")
 
 from env.state import MarketState, PortfolioState, RiskState, get_observation
 from env.reward import compute_raw_reward, normalize_reward, compute_grade
