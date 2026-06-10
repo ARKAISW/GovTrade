@@ -63,7 +63,7 @@ def plot_per_agent_rewards(metrics: dict, output_dir: Path):
     ax2.set_ylabel("Violation Rate", fontsize=12, color="#e74c3c")
     ax2.tick_params(axis='y', labelcolor="#e74c3c")
 
-    plt.title("QuantHive: Performance & Compliance Over Training", fontsize=14)
+    plt.title("GovTrade: Performance & Compliance Over Training", fontsize=14)
     ax1.grid(True, alpha=0.3)
 
     plt.tight_layout()
@@ -145,7 +145,7 @@ def plot_baseline_comparison(metrics: dict, output_dir: Path):
     ax.bar(x + width / 2, late, width, label="Late (last 20 eps)", color="#2ecc71", alpha=0.8)
 
     ax.set_ylabel("Value")
-    ax.set_title("QuantHive: Early vs Trained Performance")
+    ax.set_title("GovTrade: Early vs Trained Performance")
     ax.set_xticks(x)
     ax.set_xticklabels(metrics_names)
     ax.legend()
@@ -182,7 +182,7 @@ def plot_loss_curve(metrics: dict, output_dir: Path):
 
     ax.set_xlabel("Episode", fontsize=12)
     ax.set_ylabel("PnL %", fontsize=12)
-    ax.set_title("QuantHive: PnL Over Training (Policy Convergence)", fontsize=14)
+    ax.set_title("GovTrade: PnL Over Training (Policy Convergence)", fontsize=14)
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()

@@ -3,43 +3,50 @@ __pycache__/
 *.py[cod]
 *$py.class
 .venv/
+*.egg-info/
 
 # Data & Models
 data/*.csv
 data/*.jsonl
-checkpoints/
-models/
+models/local_policy/
+
+# Logs & Debug
 *.log
 error.txt
+hf_out.txt
+LATEST.TXT
 
-# Agent Prompts (Local Only)
-GEMINI.md
-visualizationindie.md
-task.md
-details.md
-addition.md
-summary.md
+# Training Artifacts (regenerated via Makefile)
+outputs/
+results/
+figures/
+checkpoints/
+train1/
+*.pt
+*.zip
 
 # Environment
 .env
 .env.local
 .env.*.local
 
-# VS Code
+# IDE
 .vscode/
+.idea/
+pyrightconfig.json
 
-# Project Specific
-training/outputs/
-kaggle_upload/
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Agent Prompts (local only)
+GEMINI.md
+
+# Notebooks
 notebooks/.ipynb_checkpoints/
 
-# Research Outputs (regenerated via Makefile)
-outputs/
-results/
-figures/
-*.pt
-
-# Node / JS
+# Node / JS (ui/)
 node_modules/
 dist/
 build/

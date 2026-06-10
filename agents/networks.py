@@ -222,15 +222,37 @@ class TraderActorCritic(nn.Module):
             raw_cont = cont_dist.rsample()
         else:
             raw_cont = action_cont
-        cont_log_prob = cont_dist.log_prob(raw_cont).sum(dim=-1)
-        cont_entropy = cont_dist.entropy().sum(dim=-1)
+        raw_log_prob = cont_dist.log_prob(raw_cont)  # [batch, 3] per-dim
 
         # Apply activation to bound continuous actions
-        size = torch.sigmoid(raw_cont[..., 0])         # [0, 1]
-        sl_offset = torch.relu(raw_cont[..., 1]) * 0.05  # [0, ~0.25] as price fraction
-        tp_offset = torch.relu(raw_cont[..., 2]) * 0.10  # [0, ~0.50] as price fraction
+        size = torch.sigmoid(raw_cont[..., 0])                        # [0, 1]
+        sl_offset = torch.nn.functional.softplus(raw_cont[..., 1]) * 0.05  # [0, ∞) smooth
+        tp_offset = torch.nn.functional.softplus(raw_cont[..., 2]) * 0.10  # [0, ∞) smooth
 
-        total_log_prob = dir_log_prob + cont_log_prob
+        # Hack 9 fix: Jacobian correction for change-of-variables.
+        # Without this, PPO optimizes over the pre-activation (raw) distribution,
+        # but rewards depend on post-activation actions. When sigmoid saturates,
+        # the raw distribution shifts without changing the executed action,
+        # causing phantom policy updates with no behavioral effect.
+        #
+        # For y=sigmoid(x): log|dy/dx| = log(y*(1-y))
+        # For y=softplus(x)*c: log|dy/dx| = log(sigmoid(x)*c) = log(sigmoid(x)) + log(c)
+        eps = 1e-8
+        sigmoid_jacobian = torch.log(size * (1 - size) + eps)           # dim 0
+        sl_sigmoid_x = torch.sigmoid(raw_cont[..., 1])
+        tp_sigmoid_x = torch.sigmoid(raw_cont[..., 2])
+        softplus_sl_jacobian = torch.log(sl_sigmoid_x * 0.05 + eps)    # dim 1
+        softplus_tp_jacobian = torch.log(tp_sigmoid_x * 0.10 + eps)    # dim 2
+
+        # Corrected log_prob: p(y) = p(x) / |det(J)| => log p(y) = log p(x) - log|J|
+        corrected_log_prob = (
+            raw_log_prob[..., 0] - sigmoid_jacobian
+            + raw_log_prob[..., 1] - softplus_sl_jacobian
+            + raw_log_prob[..., 2] - softplus_tp_jacobian
+        )
+        cont_entropy = cont_dist.entropy().sum(dim=-1)
+
+        total_log_prob = dir_log_prob + corrected_log_prob
         total_entropy = dir_entropy + cont_entropy
 
         return {

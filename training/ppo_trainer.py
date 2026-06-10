@@ -1,5 +1,5 @@
 """
-Multi-Agent PPO Trainer for QuantHive.
+Multi-Agent PPO Trainer for GovTrade.
 
 Implements Proximal Policy Optimization for training all three governance
 agents (Risk Manager, Portfolio Manager, Trader) with alternating optimization.
@@ -330,6 +330,7 @@ class MultiAgentPPOTrainer:
 
         step_count = 0
         final_info = {}
+        self._current_step_count = 0  # Track for Hack 11 truncation detection
 
         def assign_cycle_rewards(done: bool = False) -> None:
             for ag in ALL_AGENTS:
@@ -411,6 +412,7 @@ class MultiAgentPPOTrainer:
 
             env.step(action)
             step_count += 1
+            self._current_step_count = step_count
 
             # Track governance metrics after trader acts (full cycle)
             if agent == TRADER:
@@ -443,9 +445,26 @@ class MultiAgentPPOTrainer:
                 break
 
         # Compute GAE for each agent
+        # Hack 11 fix: use critic's value estimate for truncated (non-terminal)
+        # episodes instead of always assuming last_val=0. When the episode ends
+        # due to max_steps (truncation), the state still has future value.
+        is_truncated = self._current_step_count >= self.max_steps * 3
+        is_terminated = final_info.get("portfolio_value", self.initial_cash) < self.initial_cash * 0.50
+
         for ag in ALL_AGENTS:
             if len(buffers[ag]) > 0:
                 last_val = 0.0  # Terminal state value = 0
+                if is_truncated and not is_terminated:
+                    # Bootstrap with critic estimate for truncated episodes
+                    last_obs = buffers[ag].observations[-1]
+                    obs_t = torch.FloatTensor(last_obs).unsqueeze(0).to(self.device)
+                    with torch.no_grad():
+                        if ag == TRADER:
+                            last_val = float(self.trader.network.get_value(obs_t).item())
+                        elif ag == RISK_MANAGER:
+                            last_val = float(self.rm.network.get_value(obs_t).item())
+                        else:
+                            last_val = float(self.pm.network.get_value(obs_t).item())
                 buffers[ag].compute_gae(last_val, self.gamma, self.gae_lambda)
 
         failure_tax.check_episode()
@@ -458,7 +477,7 @@ class MultiAgentPPOTrainer:
         torch.manual_seed(self.seed)
 
         print("=" * 70)
-        print("  QuantHive — Multi-Agent PPO (Alternating Optimization)")
+        print("  GovTrade — Multi-Agent PPO (Alternating Optimization)")
         print(f"  Episodes: {total_episodes}  |  Curriculum: {len(self.curriculum)} phases")
         print(f"  Phase Length: {self.phase_length} eps | Device: {self.device}")
         print("=" * 70)
@@ -634,7 +653,7 @@ class MultiAgentPPOTrainer:
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="QuantHive Multi-Agent PPO Training")
+    parser = argparse.ArgumentParser(description="GovTrade Multi-Agent PPO Training")
     parser.add_argument("--episodes", type=int, default=1500)
     parser.add_argument("--max-steps", type=int, default=500)
     parser.add_argument("--phase-length", type=int, default=50, help="Episodes per optimization phase")

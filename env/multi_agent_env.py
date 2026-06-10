@@ -24,18 +24,15 @@ from pettingzoo import AECEnv
 
 # ── PettingZoo Version Compatibility ──────────────────────────────────
 try:
-    from pettingzoo.utils import agent_selector as AgentSelectorClass
+    from pettingzoo.utils.agent_selector import agent_selector as AgentSelectorClass
 except ImportError:
     try:
-        from pettingzoo.utils import AgentSelector as AgentSelectorClass
+        from pettingzoo.utils.agent_selector import AgentSelector as AgentSelectorClass
     except ImportError:
         try:
-            from pettingzoo.utils.agent_selector import agent_selector as AgentSelectorClass
+            from pettingzoo.utils import AgentSelector as AgentSelectorClass
         except ImportError:
-            try:
-                from pettingzoo.utils.agent_selector import AgentSelector as AgentSelectorClass
-            except ImportError:
-                raise ImportError("Could not import AgentSelector or agent_selector from PettingZoo. Please check your PettingZoo version.")
+            from pettingzoo.utils import agent_selector as AgentSelectorClass
 
 from env.state import MarketState, PortfolioState, RiskState, get_observation
 from env.reward import compute_raw_reward, normalize_reward, compute_grade
@@ -475,8 +472,6 @@ class MultiAgentTradingEnv(AECEnv):
         if not hasattr(self, "_steps_since_last_trade"):
             self._steps_since_last_trade = 0
 
-        pos_qty = self._portfolio.positions.get(self.ticker, 0.0)
-        is_invested = (abs(pos_qty) * current_price) / (prev_value + 1e-10) > 0.10
         is_meaningful_trade = traded and size >= 0.05
 
         if is_meaningful_trade or sl_tp_hit:
@@ -485,13 +480,14 @@ class MultiAgentTradingEnv(AECEnv):
             if traded: self._trades_executed += 1
         else:
             self._steps_since_last_trade += 1
-            if traded: self._trades_executed += 1
+            # Hack 10 fix: micro-trades (size < 0.05) do NOT count toward
+            # the activity gate. This closes the wash-trading loophole where
+            # agents submit $5-ticket-fee trades just to keep trade_ratio up.
             
-            # Trader is excused from hold penalty ONLY if meaningfully invested AND hasn't been holding indefinitely
-            if is_invested and self._steps_since_last_trade < 20:
-                pass  # Safely riding a trend, no penalty
-            else:
-                self._consecutive_holds += 1
+            # Hack 2 fix: removed is_invested exemption entirely. The old
+            # logic let the Trader avoid hold penalties by holding a single
+            # >10% position indefinitely, defeating the inactivity guard.
+            self._consecutive_holds += 1
 
         # Advance market step
         self._current_step += 1
@@ -538,6 +534,14 @@ class MultiAgentTradingEnv(AECEnv):
         profit = (new_value - prev_value) / (prev_value + 1e-10)
         price_trend = (new_price - current_price) / (current_price + 1e-10)
 
+        # Hack 3 fix: Use LAGGED price trend for the directional bonus.
+        # The current price_trend is computed AFTER market advance, so using
+        # it rewards the Trader for "predicting" information it couldn't
+        # have had at decision time. Using the previous step's trend removes
+        # this lookahead leak.
+        lagged_price_trend = self._prev_price_trend
+        self._prev_price_trend = price_trend
+
         raw_r = compute_raw_reward(
             profit=profit,
             drawdown=self._risk.current_drawdown,
@@ -545,15 +549,18 @@ class MultiAgentTradingEnv(AECEnv):
             sharpe=self._risk.sharpe_ratio(),
             trade_count=int(traded or sl_tp_hit or margin_called),
             direction=direction,
-            price_trend=price_trend,
+            price_trend=lagged_price_trend,
             trade_size=size,
         )
 
         # ═══════════════════════════════════════════════════════════════════
         # LAYER 1: Progressive Consecutive Hold Penalty (Applied to Raw Reward)
         # ═══════════════════════════════════════════════════════════════════
-        # Issue 3: Increased progressive hold cost to 0.005
-        progressive_hold_raw_cost = 0.005 * min(self._consecutive_holds, 20)
+        # Hack 2 fix: Progressive hold cost now scales with opportunity cost
+        # (market movement magnitude). Flat 0.005 was too small — holding
+        # during a trending market was free money with no penalty.
+        opp_cost_mult = max(1.0, abs(price_trend) * 200.0)  # 1x base, up to ~4x in trends
+        progressive_hold_raw_cost = 0.008 * min(self._consecutive_holds, 30) * opp_cost_mult
         raw_r -= progressive_hold_raw_cost
 
         # ═══════════════════════════════════════════════════════════════════
@@ -565,9 +572,17 @@ class MultiAgentTradingEnv(AECEnv):
         rm_force_reduce = bool(self._rm_message[2] > 0.5)
         current_dd = float(self._risk.current_drawdown)
 
-        # PM: penalize low capital allocation continuously
+        # ═══════════════════════════════════════════════════════════════
+        # Hack 1 fix: Over-restriction penalties now have a CONSTANT
+        # minimum floor independent of vol_factor. The old design let
+        # RM+PM freeze the Trader (vol→0 → penalty→0), creating a
+        # cooperative strangulation equilibrium.
+        # ═══════════════════════════════════════════════════════════════
         vol_factor = float(np.clip(self._risk.return_volatility() * 10.0, 0.0, 1.0))
-        pm_floor = 0.20 * (1.0 - 0.75 * vol_factor)
+
+        # PM: penalize low capital allocation continuously
+        # Constant floor of 0.15 ensures penalty even when vol=0 (frozen portfolio)
+        pm_floor = max(0.15, 0.20 * (1.0 - 0.75 * vol_factor))
         utilization_penalty = max(0.0, pm_floor - cap_alloc) * 5.0
         
         # Issue 10: Penalize override thrashing
@@ -577,18 +592,21 @@ class MultiAgentTradingEnv(AECEnv):
             if flips > 3:
                 utilization_penalty += 0.05 * flips
 
-        # Always penalize absolute vetoes so PM cannot freeze the portfolio completely
-        pm_veto_pen = 0.20 * (1.0 - 0.75 * vol_factor) if current_dd < 0.10 else 0.05
+        # Hack 6 fix: PM veto penalty INCREASES during drawdown (was inverted).
+        # During drawdown, the portfolio needs capital for recovery trades;
+        # blanket-blocking is the worst time to veto.
+        pm_veto_pen = 0.15 if current_dd < 0.10 else (0.30 + current_dd)
         if self._pm_override_strength > 0.7:
             utilization_penalty += pm_veto_pen
 
         # RM: penalize overly tight size limits.
-        rm_floor = 0.20 * (1.0 - 0.75 * vol_factor)
-        rm_restrict_penalty = max(0.0, rm_floor - size_limit) * (0.5 if current_dd < 0.10 else 0.10)
+        # Constant floor of 0.15 prevents zero-penalty strangulation
+        rm_floor = max(0.15, 0.20 * (1.0 - 0.75 * vol_factor))
+        rm_restrict_penalty = max(0.0, rm_floor - size_limit) * (0.5 if current_dd < 0.10 else 0.15)
         if not rm_allow_new:
-            rm_restrict_penalty += 0.20 if current_dd < 0.10 else 0.05
+            rm_restrict_penalty += 0.20 if current_dd < 0.10 else 0.10
         if rm_force_reduce:
-            rm_restrict_penalty += 0.20 if current_dd < 0.10 else 0.05
+            rm_restrict_penalty += 0.20 if current_dd < 0.10 else 0.10
 
         # Keep failure taxonomy for research logging (NOT for reward)
         self._failure_tax.check_step(
@@ -633,9 +651,12 @@ class MultiAgentTradingEnv(AECEnv):
         self.rewards[PORTFOLIO_MGR] = float(pm_reward)
 
         # ── RM reward: shared downside with final portfolio value ───────────
-        # Issue 1, 2: Symmetrize profit share to 15% and normalize RM reward
+        # Hack 4 fix: ASYMMETRIC profit share. RM gets only 5% of upside
+        # but 30% of downside. This makes the RM feel crashes 6x more
+        # than rallies, creating a strong incentive to prevent drawdowns
+        # rather than ride bull markets with max permissiveness.
         profit_signal = profit * 100.0
-        rm_pain = profit_signal * 0.15 # Symmetric 15%
+        rm_pain = profit_signal * 0.05 if profit >= 0 else profit_signal * 0.30
             
         rm_reward_final_raw = float(self._rm_cycle_reward + rm_pain - rm_restrict_penalty)
         self.rewards[RISK_MANAGER] = normalize_reward(rm_reward_final_raw)
@@ -663,14 +684,22 @@ class MultiAgentTradingEnv(AECEnv):
                 if PORTFOLIO_MGR in self.rewards: self.rewards[PORTFOLIO_MGR] -= 1.5
 
             # ═══════════════════════════════════════════════════════════════
-            # LAYER 3: End-of-Episode Activity Gate (Trader Specific)
+            # LAYER 3: End-of-Episode Activity Gate (ALL AGENTS)
             # ═══════════════════════════════════════════════════════════════
             trade_ratio = self._trades_executed / max(self._current_step, 1)
             if trade_ratio < 0.15:
-                # Issue 5: Reduced inactivity slam
                 inactivity_slam = -2.0 * (1.0 - trade_ratio / 0.15)
                 if TRADER in self.rewards:
                     self.rewards[TRADER] = float(self.rewards[TRADER] + inactivity_slam)
+
+                # Hack 1 fix: RM and PM share the inactivity blame.
+                # Without this, RM+PM could freeze the Trader and never
+                # be penalized — the old code only slammed the Trader.
+                supervisor_slam = inactivity_slam * 0.5
+                if RISK_MANAGER in self.rewards:
+                    self.rewards[RISK_MANAGER] = float(self.rewards[RISK_MANAGER] + supervisor_slam)
+                if PORTFOLIO_MGR in self.rewards:
+                    self.rewards[PORTFOLIO_MGR] = float(self.rewards[PORTFOLIO_MGR] + supervisor_slam)
 
         # Rebuild observations for the next cycle
         self._generate_observations()
@@ -731,9 +760,11 @@ class MultiAgentTradingEnv(AECEnv):
         from env.regime_engine import REGIME_TO_ID, NUM_REGIMES
         regime_id = REGIME_TO_ID.get(self._current_regime_label, 0)
         
-        # Issue 12: Increased noise to regime signal to prevent perfect peeking
+        # Hack 8 fix: Increased noise from 0.05 to 0.15 so agents cannot
+        # perfectly identify the regime from the indicator alone (SNR 1.7:1→0.55:1).
+        # Agents must learn to infer regime from market features instead.
         regime_val = regime_id / max(NUM_REGIMES, 1)
-        regime_val += np.random.normal(0, 0.05) 
+        regime_val += np.random.normal(0, 0.15) 
         
         regime_indicator = np.array([np.clip(regime_val, 0.0, 1.0)], dtype=np.float32)
         base_obs_r = np.concatenate([base_obs, regime_indicator])
@@ -778,6 +809,7 @@ class MultiAgentTradingEnv(AECEnv):
         self._episode_rewards = []
         self._governance_log: List[Dict] = []
         self._prev_portfolio_value = self.initial_cash
+        self._prev_price_trend = 0.0  # Hack 3: lagged price trend for directional bonus
 
         # PZ state dictionaries
         self._observations = {ag: np.zeros(self.observation_spaces[ag].shape or (0,), dtype=np.float32)
@@ -833,7 +865,10 @@ class MultiAgentTradingEnv(AECEnv):
         elif direction == 2:  # SELL / Short
             pos = self._portfolio.positions.get(self.ticker, 0.0)
             if pos > 0:
-                sell_qty = min(pos, pos * size)
+                # Hack 7 fix: equity-based sell sizing to match buy sizing
+                total_val = self._portfolio.total_value(current_price, self.ticker)
+                target_sell_value = total_val * size
+                sell_qty = min(pos, target_sell_value / (current_price + 1e-10))
                 if sell_qty > 1e-8:
                     revenue = sell_qty * current_price * (1 - self.commission) - self.ticket_fee
                     self._portfolio.cash += revenue

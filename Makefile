@@ -31,6 +31,6 @@ test-governance:
 
 # Clean outputs
 clean:
-	@if exist outputs rmdir /s /q outputs
-	@if exist results rmdir /s /q results
-	@if exist figures rmdir /s /q figures
+	rm -rf outputs/ results/ figures/
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name .pytest_cache -exec rm -rf {} + 2>/dev/null || true

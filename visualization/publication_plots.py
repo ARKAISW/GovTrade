@@ -147,7 +147,7 @@ def plot_training_curves(metrics: Dict[str, List], output_dir: str = "figures"):
     ax.set_title("PPO Policy Loss")
     ax.legend()
 
-    fig.suptitle("QuantHive — Multi-Agent PPO Training Curves", fontsize=14, fontweight="bold")
+    fig.suptitle("GovTrade — Multi-Agent PPO Training Curves", fontsize=14, fontweight="bold")
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     fig.savefig(Path(output_dir) / "training_curves.png")
     fig.savefig(Path(output_dir) / "training_curves.pdf")

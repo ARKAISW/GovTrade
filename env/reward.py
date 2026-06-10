@@ -21,7 +21,7 @@ DEFAULT_WEIGHTS = {
 }
 
 # Normalization: tanh scale factor (higher = more compression, lower = more linear near zero)
-DEFAULT_NORM_SCALE = 2.0
+DEFAULT_NORM_SCALE = 5.0
 
 
 def compute_raw_reward(
@@ -107,7 +107,7 @@ def normalize_reward(
     which collapsed everything to ~0.5.
     """
     s = float(scale if scale is not None else DEFAULT_NORM_SCALE)
-    return float(np.tanh(raw / s))
+    return float(np.clip(raw / s, -1.0, 1.0))
 
 
 def compute_grade(metrics: Dict[str, float]) -> float:
