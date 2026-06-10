@@ -36,20 +36,20 @@ The primary research question is not "how much profit did the system make?" but 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                   Market Regime Engine                          │
-│   8 standard regimes + 4 adversarial │ Markov transitions      │
+│   8 standard regimes + 4 adversarial │ Markov transitions       │
 └────────────────────────┬────────────────────────────────────────┘
                          │ OHLCV + noised regime indicator
                          ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │              PettingZoo AEC Environment                         │
 │                                                                 │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
-│  │ Risk Manager │───▶│ Portfolio Mgr│───▶│   Trader     │      │
-│  │  obs: (25,)  │    │  obs: (28,)  │    │  obs: (30,)  │      │
-│  │  act: (3,)   │    │  act: (2,)   │    │  act: mixed  │      │
-│  └──────────────┘    └──────────────┘    └──────────────┘      │
-│         │ rm_message        │ pm_message        │              │
-│         └───────────────────┴───────────────────┘              │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
+│  │ Risk Manager │───>│ Portfolio Mgr│───>│   Trader     │       | 
+│  │  obs: (25,)  │    │  obs: (28,)  │    │  obs: (30,)  │       │
+│  │  act: (3,)   │    │  act: (2,)   │    │  act: mixed  │       │
+│  └──────────────┘    └──────────────┘    └──────────────┘       │
+│         │ rm_message        │ pm_message        │               │
+│         └───────────────────┴───────────────────┘               │
 │                    Inter-Agent Messages                         │
 └─────────────────────────────────────────────────────────────────┘
                          │
