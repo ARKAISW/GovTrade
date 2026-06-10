@@ -504,7 +504,14 @@ class MultiAgentTradingEnv(AECEnv):
         pos_qty_after_move = self._portfolio.positions.get(self.ticker, 0.0)
         if pos_qty_after_move < 0:
             short_pnl = self._portfolio.unrealized_pnl(new_price, self.ticker)
-            if short_pnl < -(self.initial_cash * self.margin_call_threshold):
+            # Trigger margin call if unrealized loss exceeds threshold OR
+            # total NAV has already fallen below the hard 10% floor.
+            # The nav_breach check catches extreme single-step price gaps
+            # (flash_crash regime with df=2 fat tails) that can bypass
+            # the PnL threshold entirely in one candle.
+            nav_breach = new_value < self.initial_cash * 0.10
+            pnl_breach = short_pnl < -(self.initial_cash * self.margin_call_threshold)
+            if pnl_breach or nav_breach:
                 abs_qty = abs(pos_qty_after_move)
                 avg_cost = self._portfolio.avg_costs.get(self.ticker, new_price)
                 cover_cost = abs_qty * new_price * (1 + self.commission) + self.ticket_fee
@@ -521,11 +528,19 @@ class MultiAgentTradingEnv(AECEnv):
                     "agent": "ComplianceOfficer",
                     "type": "margin_call",
                     "reason": (
-                        f"Unrealized short loss exceeded "
-                        f"{self.margin_call_threshold:.0%} threshold"
+                        f"Short margin call: pnl_breach={pnl_breach}, "
+                        f"nav_breach={nav_breach} (NAV={new_value:.0f})"
                     ),
                 })
                 new_value = self._portfolio.total_value(new_price, self.ticker)
+
+        # Hard safety net: NAV must never go below 0 regardless of what happened above.
+        # If it somehow still is (e.g. long position in a gapped market), close everything.
+        if new_value < 0:
+            self._portfolio.cash = max(self._portfolio.cash, 0.0)
+            self._portfolio.positions[self.ticker] = 0.0
+            self._portfolio.avg_costs[self.ticker] = 0.0
+            new_value = max(self._portfolio.total_value(new_price, self.ticker), 0.0)
 
         self._risk.update(new_value)
         self._episode_values.append(new_value)
