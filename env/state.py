@@ -179,7 +179,9 @@ class RiskState:
         # Update peak and drawdown
         if portfolio_value > self.peak_value:
             self.peak_value = portfolio_value
-        self.current_drawdown = (self.peak_value - portfolio_value) / (self.peak_value + 1e-10)
+        self.current_drawdown = float(np.clip(
+            (self.peak_value - portfolio_value) / (self.peak_value + 1e-10), 0.0, 1.0
+        ))
         self.max_drawdown = max(self.max_drawdown, self.current_drawdown)
 
     def sharpe_ratio(self, risk_free_rate: float = 0.0) -> float:
