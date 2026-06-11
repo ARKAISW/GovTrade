@@ -262,10 +262,17 @@ class MultiAgentTradingEnv(AECEnv):
 
         # Penalty-only drawdown response: never reward the RM for a crisis existing.
         if drawdown > 0.10 and size_limit > 0.30:
-            rm_reward -= 0.20 # Toned down from 0.40
+            rm_reward -= 0.20  # Toned down from 0.40
 
-        # Note: shared upside/downside is now handled in _advance_market to ensure
-        # synchronized profit calculation across all agents.
+        # Anti-strangulation: penalize trivially tight limits when there is NO justification.
+        # If drawdown < 5% and size_limit < 0.05, the RM is blocking without cause.
+        # This is the live reward counterpart to the `trivial_safety` failure taxonomy entry.
+        # Without this, the RM learns: set size_limit=0 forever → no blowup penalty → Nash eq.
+        if drawdown < 0.05 and size_limit < 0.05:
+            rm_reward -= 0.30  # Stronger than the old restriction floor (0.075/step)
+        elif drawdown < 0.10 and size_limit < 0.15:
+            rm_reward -= 0.10  # Moderate penalty for over-caution in low-stress conditions
+
         self._rm_cycle_reward = float(rm_reward)
 
     def _step_portfolio_manager(self, action: np.ndarray):
@@ -707,10 +714,12 @@ class MultiAgentTradingEnv(AECEnv):
                 if TRADER in self.rewards:
                     self.rewards[TRADER] = float(self.rewards[TRADER] + inactivity_slam)
 
-                # Hack 1 fix: RM and PM share the inactivity blame.
-                # Without this, RM+PM could freeze the Trader and never
-                # be penalized — the old code only slammed the Trader.
-                supervisor_slam = inactivity_slam * 0.5
+                # Hack 1 fix: RM and PM share the inactivity blame at FULL weight.
+                # Previous 0.5x multiplier was insufficient to break the cooperative
+                # strangulation equilibrium — supervisors would still prefer blocking
+                # everything (0.5 * -2.0 = -1.0) over risking a blowup (-5.0).
+                # At 1.5x, the strangulation cost exceeds the blowup penalty.
+                supervisor_slam = inactivity_slam * 1.5
                 if RISK_MANAGER in self.rewards:
                     self.rewards[RISK_MANAGER] = float(self.rewards[RISK_MANAGER] + supervisor_slam)
                 if PORTFOLIO_MGR in self.rewards:

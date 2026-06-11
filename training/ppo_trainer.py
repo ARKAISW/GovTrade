@@ -588,12 +588,18 @@ class MultiAgentPPOTrainer:
                 self._save_checkpoint(ep + 1)
 
             # Track best governance score (combined metric)
+            # Governance score: a frozen portfolio now scores near 0.
+            # capital_utilization = trade_ratio; must be > 0 to score above baseline.
+            # This prevents the cooperative strangulation equilibrium from producing
+            # "best" checkpoints with DD=0%, Ret=0%, Viol=0% (nothing happened).
+            capital_util = final_gov.get("capital_utilization", 0.0)
             gov_score = (
-                (1 - final_gov["max_drawdown"]) * 0.3
-                + final_gov["sharpe_ratio"] * 0.2
-                + (1 - final_gov["constraint_violation_rate"]) * 0.2
-                + (1 - final_gov["false_tightening_rate"]) * 0.15
-                + final_gov.get("intervention_efficiency", 0) * 0.15
+                (1 - final_gov["max_drawdown"]) * 0.25
+                + final_gov["sharpe_ratio"] * 0.20
+                + (1 - final_gov["constraint_violation_rate"]) * 0.15
+                + (1 - final_gov["false_tightening_rate"]) * 0.10
+                + final_gov.get("intervention_efficiency", 0) * 0.10
+                + capital_util * 0.20           # MUST trade to score well
             )
             if gov_score > best_gov_score:
                 best_gov_score = gov_score
