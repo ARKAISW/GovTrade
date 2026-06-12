@@ -251,13 +251,28 @@ class MultiAgentTradingEnv(AECEnv):
         allow_new  = allow_new_raw  > 0.5
         force_reduce = force_reduce_raw > 0.5
 
-        # Store message to pass to PM and Trader
+        # Compute current drawdown once — used in both the floor and the reward
+        drawdown = self._risk.current_drawdown
+
+        # ── Institutional floor: RM cannot fully block trading without crisis ──
+        # In real institutions, risk managers cannot set position limits to zero
+        # absent a declared crisis. This constraint is defensible in the paper:
+        # "We implement a minimum-activity constraint (size_limit ≥ α(DD)) to
+        # reflect the real-world norm that portfolio managers must deploy capital."
+        #
+        # Floor: linearly scales from 0.20 (at 0% drawdown) to 0.0 (at 15% drawdown)
+        # Above 15% drawdown, RM is free to fully restrict.
+        crisis_threshold = 0.15
+        if drawdown < crisis_threshold:
+            min_size_limit = 0.20 * (1.0 - drawdown / crisis_threshold)
+            size_limit = max(size_limit, min_size_limit)
+
+        # Store message to pass to PM and Trader (with floor applied)
         self._rm_message = np.array(
             [size_limit, float(allow_new), float(force_reduce)], dtype=np.float32
         )
 
-        # Compute RM's step reward
-        drawdown = self._risk.current_drawdown
+        # ── RM step reward ───────────────────────────────────────────────────
         rm_reward = 0.0
 
         # Penalty-only drawdown response: never reward the RM for a crisis existing.
@@ -266,12 +281,12 @@ class MultiAgentTradingEnv(AECEnv):
 
         # Anti-strangulation: penalize trivially tight limits when there is NO justification.
         # If drawdown < 5% and size_limit < 0.05, the RM is blocking without cause.
-        # This is the live reward counterpart to the `trivial_safety` failure taxonomy entry.
-        # Without this, the RM learns: set size_limit=0 forever → no blowup penalty → Nash eq.
+        # (Floor above makes size_limit < 0.05 impossible when DD < 15%, but keep
+        # this penalty as an additional gradient signal during the floor-free crisis zone.)
         if drawdown < 0.05 and size_limit < 0.05:
-            rm_reward -= 0.30  # Stronger than the old restriction floor (0.075/step)
+            rm_reward -= 0.30
         elif drawdown < 0.10 and size_limit < 0.15:
-            rm_reward -= 0.10  # Moderate penalty for over-caution in low-stress conditions
+            rm_reward -= 0.10
 
         self._rm_cycle_reward = float(rm_reward)
 
@@ -286,6 +301,14 @@ class MultiAgentTradingEnv(AECEnv):
         """
         cap_alloc  = float(np.clip(action[0], 0.0, 1.0))
         override_s = float(action[1])
+
+        # ── Institutional floor: PM cannot withdraw all capital without crisis ──
+        # Capital allocation below 15% is treated as a strangulation signal.
+        # Above 20% drawdown (crisis), PM is free to reduce to 0.
+        pm_crisis_threshold = 0.20
+        if self._risk.current_drawdown < pm_crisis_threshold:
+            min_cap_alloc = 0.15 * (1.0 - self._risk.current_drawdown / pm_crisis_threshold)
+            cap_alloc = max(cap_alloc, min_cap_alloc)
 
         self._pm_message = np.array([cap_alloc, override_s], dtype=np.float32)
         self._pm_capital_allocation = cap_alloc

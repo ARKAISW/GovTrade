@@ -231,8 +231,8 @@ class MultiAgentPPOTrainer:
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
         clip_epsilon: float = 0.2,
-        entropy_coeff: float = 0.01,
-        entropy_decay: float = 0.9995,
+        entropy_coeff: float = 0.03,   # Increased from 0.01 — prevents premature convergence
+        entropy_decay: float = 0.9998,  # Slowed from 0.9995 — keeps exploration alive to ep 5000
         value_coeff: float = 0.5,
         max_grad_norm: float = 0.5,
         ppo_epochs: int = 4,
