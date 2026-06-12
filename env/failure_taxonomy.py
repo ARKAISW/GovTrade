@@ -134,7 +134,11 @@ class GovernanceFailureTaxonomy:
             ))
 
         # 1. OVERREACTION
-        if size_limit < 0.2 and drawdown < 0.05:
+        # Threshold adjusted from 0.20 to 0.10 to account for the institutional floor.
+        # The RM floor forces size_limit >= ~0.15 at low drawdown, so the old 0.20
+        # threshold was firing on floor-capped values rather than genuine overreaction.
+        # Genuine overreaction = size_limit < 0.10 (pushing against the floor) + low DD.
+        if size_limit < 0.10 and drawdown < 0.05:
             self.failures.append(FailureEvent(
                 failure_type="overreaction",
                 step=step,
@@ -157,7 +161,8 @@ class GovernanceFailureTaxonomy:
             self._stress_unresponded_steps = 0
 
         # 3. FALSE_CONSTRAINT_TIGHTENING
-        if (size_limit < 0.2 and drawdown < 0.03 and
+        # Threshold adjusted from 0.2 to 0.10 (same rationale as overreaction above).
+        if (size_limit < 0.10 and drawdown < 0.03 and
                 regime_label in ("bull_steady", "mean_revert")):
             self.failures.append(FailureEvent(
                 failure_type="false_constraint_tightening",
@@ -211,7 +216,10 @@ class GovernanceFailureTaxonomy:
                 ))
 
         # 7. INACTION_UNDER_STRESS
-        if drawdown > 0.15 and size_limit > 0.5:
+        # Threshold raised from 0.5 to 0.6: the institutional floor already prevents
+        # full restriction, so a genuinely non-responding RM will stay near 0.6+ even
+        # under stress. size_limit > 0.6 with DD > 15% = clearly not restricting.
+        if drawdown > 0.15 and size_limit > 0.60:
             self.failures.append(FailureEvent(
                 failure_type="inaction_under_stress",
                 step=step,
