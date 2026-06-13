@@ -473,8 +473,15 @@ class MultiAgentPPOTrainer:
 
     def train(self, total_episodes: int = 1500) -> Dict[str, List]:
         """Run the full training loop using Alternating Optimization."""
+        # ── Reproducibility: seed ALL random sources ───────────────────
+        import random as _random
+        _random.seed(self.seed)
         np.random.seed(self.seed)
         torch.manual_seed(self.seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(self.seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
         print("=" * 70)
         print("  GovTrade — Multi-Agent PPO (Alternating Optimization)")
@@ -500,6 +507,7 @@ class MultiAgentPPOTrainer:
                 difficulty=difficulty,
                 max_steps=self.max_steps,
                 initial_cash=self.initial_cash,
+                seed=self.seed + ep,   # unique but deterministic seed per episode
             )
 
             # Collect episode
