@@ -132,8 +132,17 @@ def ppo_update(
     advantages_t = torch.FloatTensor(buffer.advantages).to(device)
     returns_t = torch.FloatTensor(buffer.returns).to(device)
 
-    # Normalize advantages
-    advantages_t = (advantages_t - advantages_t.mean()) / (advantages_t.std() + 1e-8)
+    # Normalize advantages — guard against n==1 (std() NaN) and extreme values
+    if len(buffer) > 1:
+        adv_std = advantages_t.std(unbiased=False)  # unbiased=False avoids DOF warning
+        adv_mean = advantages_t.mean()
+        if adv_std > 1e-8 and not torch.isnan(adv_std):
+            advantages_t = (advantages_t - adv_mean) / (adv_std + 1e-8)
+    advantages_t = torch.clamp(advantages_t, -10.0, 10.0)  # prevent exploding advantages
+
+    # Abort if advantages contain NaN (upstream GAE issue)
+    if torch.isnan(advantages_t).any() or torch.isnan(returns_t).any():
+        return {"policy_loss": 0.0, "value_loss": 0.0, "entropy": 0.0}
 
     metrics_accum = defaultdict(list)
     n = len(buffer)
@@ -196,6 +205,16 @@ def ppo_update(
 
             optimizer.zero_grad()
             loss.backward()
+
+            # NaN guard: if backward produced NaN gradients, skip this minibatch
+            has_nan_grad = any(
+                p.grad is not None and torch.isnan(p.grad).any()
+                for p in network.parameters()
+            )
+            if has_nan_grad:
+                optimizer.zero_grad()
+                continue
+
             nn.utils.clip_grad_norm_(network.parameters(), max_grad_norm)
             optimizer.step()
 
