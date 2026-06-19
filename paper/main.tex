@@ -25,7 +25,7 @@
 
 % ─── Title ───────────────────────────────────────────────────────────────
 \title{%
-  \textbf{QuantHive: Learned Adaptive Governance \\
+  \textbf{GovTrade: Learned Adaptive Governance \\
   in Multi-Agent Financial Systems}
 }
 \author{
@@ -39,7 +39,7 @@
 
 % ═══════════════════════════════════════════════════════════════════════════
 \begin{abstract}
-Traditional algorithmic trading systems rely on static risk management scripts---hard stop-losses, fixed position limits, and rule-based circuit breakers---that frequently fail to adapt during unprecedented market volatility. This paper introduces QuantHive, a research-grade benchmark for evaluating neural supervisory agents in a Decentralized Partially Observable Markov Decision Process (Dec-POMDP) financial environment. QuantHive models institutional oversight as a sequential multi-agent hierarchy: a profit-maximizing Trader, a risk-constraining Risk Manager (RM), and a strategic Portfolio Manager (PM). We train all three agents using Proximal Policy Optimization (PPO) with a novel Alternating Optimization curriculum that prevents the non-stationarity collapse inherent in joint multi-agent training. During development, we identify and resolve a critical MARL failure mode termed \emph{Cooperative Strangulation}, wherein supervisory agents learn to permanently paralyze the Trader to trivially minimize risk. Through counterfactual benchmarking across 50 deterministic episodes, we demonstrate that neural governance prevents $3.38\%$ of absolute maximal drawdown compared to an ungoverned trader on identical market trajectories. Additionally, the fully learned system (B4) achieves a constraint violation rate of just $0.72\%$ versus $56.4\%$ for random agents and $24.1\%$ for rule-based governance, while maintaining a Sharpe ratio of $0.143$. We release the full codebase, trained checkpoints, and benchmark suite as an open-source framework for future research in learned institutional oversight.
+Traditional algorithmic trading systems rely on static risk management scripts---hard stop-losses, fixed position limits, and rule-based circuit breakers---that frequently fail to adapt during unprecedented market volatility. This paper introduces GovTrade, a research-grade benchmark for evaluating neural supervisory agents in a Decentralized Partially Observable Markov Decision Process (Dec-POMDP) financial environment. GovTrade models institutional oversight as a sequential multi-agent hierarchy: a profit-maximizing Trader, a risk-constraining Risk Manager (RM), and a strategic Portfolio Manager (PM). We train all three agents using Proximal Policy Optimization (PPO) with a novel Alternating Optimization curriculum that prevents the non-stationarity collapse inherent in joint multi-agent training. During development, we identify and resolve a critical MARL failure mode termed \emph{Cooperative Strangulation}, wherein supervisory agents learn to permanently paralyze the Trader to trivially minimize risk. Through counterfactual benchmarking across 50 deterministic episodes, we demonstrate that neural governance prevents $3.38\%$ of absolute maximal drawdown compared to an ungoverned trader on identical market trajectories. Additionally, the fully learned system (B4) achieves a constraint violation rate of just $0.72\%$ versus $56.4\%$ for random agents and $24.1\%$ for rule-based governance, while maintaining a Sharpe ratio of $0.143$. We release the full codebase, trained checkpoints, and benchmark suite as an open-source framework for future research in learned institutional oversight.
 \end{abstract}
 
 % ═══════════════════════════════════════════════════════════════════════════
@@ -48,9 +48,9 @@ Traditional algorithmic trading systems rely on static risk management scripts--
 
 Financial markets are non-stationary, complex adaptive systems prone to fat-tailed risk events. The history of automated trading is marked by catastrophic failures---the 2010 Flash Crash \citep{kirilenko2017flash}, the Knight Capital anomaly of 2012, and the March 2020 COVID liquidity crisis---all stemming from a fundamental deficiency in modern algorithmic governance: static scripts cannot adapt to structural regime shifts in real-time. Hardcoded stop-losses and fixed position limits often \emph{exacerbate} losses during cascading liquidations by forcing sub-optimal exits or failing to restrict exposure before volatility peaks.
 
-We propose that institutional governance should not be a static script, but rather an \emph{adaptive, learned policy} capable of dynamically restricting or expanding operational bounds based on real-time market microstructure and portfolio drawdown. We introduce \textbf{QuantHive}, an open-source multi-agent framework built on PettingZoo \citep{terry2021pettingzoo}, where governance is modeled as a Decentralized Partially Observable Markov Decision Process (Dec-POMDP) \citep{oliehoek2016concise}.
+We propose that institutional governance should not be a static script, but rather an \emph{adaptive, learned policy} capable of dynamically restricting or expanding operational bounds based on real-time market microstructure and portfolio drawdown. We introduce \textbf{GovTrade}, an open-source multi-agent framework built on PettingZoo \citep{terry2021pettingzoo}, where governance is modeled as a Decentralized Partially Observable Markov Decision Process (Dec-POMDP) \citep{oliehoek2016concise}.
 
-In QuantHive, three distinct deep reinforcement learning agents interact sequentially using Proximal Policy Optimization (PPO) \citep{schulman2017proximal}: a Trader, a Risk Manager (RM), and a Portfolio Manager (PM). The RM and PM act as neural supervisors, imposing hierarchical boundary constraints on the Trader's action space. This creates an adversarial, mixed-motive environment where the Trader seeks to maximize absolute profit, while the supervisory agents seek to minimize tail-loss and ensure institutional survival.
+In GovTrade, three distinct deep reinforcement learning agents interact sequentially using Proximal Policy Optimization (PPO) \citep{schulman2017proximal}: a Trader, a Risk Manager (RM), and a Portfolio Manager (PM). The RM and PM act as neural supervisors, imposing hierarchical boundary constraints on the Trader's action space. This creates an adversarial, mixed-motive environment where the Trader seeks to maximize absolute profit, while the supervisory agents seek to minimize tail-loss and ensure institutional survival.
 
 \subsection{Contributions}
 Our contributions are fourfold:
@@ -69,10 +69,10 @@ Our contributions are fourfold:
 The study of mixed-motive environments and sequential social dilemmas has expanded significantly \citep{leibo2017multi}. Traditional MARL algorithms such as MADDPG \citep{lowe2017multi} address cooperative-competitive settings but struggle when agent policies co-evolve in hierarchical structures. Techniques like stabilizing experience replay \citep{foerster2017stabilising} mitigate non-stationarity, but adversarial governance constraints introduce unique dynamics that standard actor-critic methods fail to resolve without explicit curriculum design.
 
 \textbf{AI Safety and Learned Oversight.}
-Ensuring that autonomous systems operate within safe bounds is a core challenge in AI alignment \citep{amodei2016concrete}. While most safety research focuses on reward shaping or constrained MDPs, QuantHive approaches safety via \emph{learned oversight}---training an independent neural network to monitor and constrain a primary actor. This mirrors real-world institutional structures where Risk Departments operate independently of Trading Desks.
+Ensuring that autonomous systems operate within safe bounds is a core challenge in AI alignment \citep{amodei2016concrete}. While most safety research focuses on reward shaping or constrained MDPs, GovTrade approaches safety via \emph{learned oversight}---training an independent neural network to monitor and constrain a primary actor. This mirrors real-world institutional structures where Risk Departments operate independently of Trading Desks.
 
 \textbf{Financial Simulation Environments.}
-Prior work on RL for trading---including FinRL, ABIDES, and OpenAI's market makers---focuses primarily on profit maximization. QuantHive is distinguished by its explicit focus on \emph{governance quality} as the primary evaluation metric, rather than PnL.
+Prior work on RL for trading---including FinRL, ABIDES, and OpenAI's market makers---focuses primarily on profit maximization. GovTrade is distinguished by its explicit focus on \emph{governance quality} as the primary evaluation metric, rather than PnL.
 
 % ═══════════════════════════════════════════════════════════════════════════
 \section{Formal Problem Definition}
@@ -133,7 +133,7 @@ We implement 11 explicit defenses against reward exploitation:
 \label{sec:environment}
 
 \subsection{Market Regime Engine}
-QuantHive generates synthetic market data using a Markov-chain regime transition model with 8 standard regimes and 4 adversarial stress scenarios, each calibrated to real historical market parameters (Table~\ref{tab:regimes}).
+GovTrade generates synthetic market data using a Markov-chain regime transition model with 8 standard regimes and 4 adversarial stress scenarios, each calibrated to real historical market parameters (Table~\ref{tab:regimes}).
 
 \begin{table}[h]
 \centering
@@ -354,7 +354,7 @@ Notably, the system achieves its \emph{highest} Sharpe ratios ($0.230$, $0.251$)
 % ═══════════════════════════════════════════════════════════════════════════
 \section{Conclusion}
 \label{sec:conclusion}
-We presented QuantHive, a rigorous benchmark demonstrating that institutional financial governance can be effectively formulated and solved as a multi-agent reinforcement learning problem. Through systematic development across three independent training seeds, we identified and resolved two critical failure modes: the Joint Training Death Spiral and the Cooperative Strangulation Equilibrium. Our fully learned governance system (B4) achieves a $78\times$ reduction in constraint violations compared to random agents while maintaining positive returns, and actively prevents $3.38\%$ of absolute drawdown in counterfactual evaluation. The governance failure taxonomy and open-source benchmark suite provide a foundation for future research into AI alignment, robust reinforcement learning, and automated oversight in complex economic systems.
+We presented GovTrade, a rigorous benchmark demonstrating that institutional financial governance can be effectively formulated and solved as a multi-agent reinforcement learning problem. Through systematic development across three independent training seeds, we identified and resolved two critical failure modes: the Joint Training Death Spiral and the Cooperative Strangulation Equilibrium. Our fully learned governance system (B4) achieves a $78\times$ reduction in constraint violations compared to random agents while maintaining positive returns, and actively prevents $3.38\%$ of absolute drawdown in counterfactual evaluation. The governance failure taxonomy and open-source benchmark suite provide a foundation for future research into AI alignment, robust reinforcement learning, and automated oversight in complex economic systems.
 
 \textbf{Reproducibility.} All code, trained checkpoints, and benchmark scripts are available at \url{https://github.com/ARKAISW/GovTrade}.
 
