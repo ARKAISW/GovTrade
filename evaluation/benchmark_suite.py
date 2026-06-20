@@ -149,11 +149,11 @@ def evaluate_episode(env, agents, max_steps=500, zero_messages=False, zero_regim
 
 class BenchmarkSuite:
     BASELINES = {
-        "B0": {"rm": "random", "pm": "random", "trader": "random"},
-        "B1": {"rm": "rule_based", "pm": "rule_based", "trader": "rule_based"},
-        "B2": {"rm": "rule_based", "pm": "rule_based", "trader": "learned"},
-        "B3": {"rm": "learned", "pm": "rule_based", "trader": "learned"},
-        "B4": {"rm": "learned", "pm": "learned", "trader": "learned"},
+        "B0": {"rm_type": "random", "pm_type": "random", "trader_type": "random"},
+        "B1": {"rm_type": "rule_based", "pm_type": "rule_based", "trader_type": "rule_based"},
+        "B2": {"rm_type": "rule_based", "pm_type": "rule_based", "trader_type": "learned"},
+        "B3": {"rm_type": "learned", "pm_type": "rule_based", "trader_type": "learned"},
+        "B4": {"rm_type": "learned", "pm_type": "learned", "trader_type": "learned"},
     }
 
     def __init__(self, num_seeds=50, max_steps=500, checkpoint_dir=None,
