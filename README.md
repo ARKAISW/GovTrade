@@ -66,16 +66,16 @@ Once the system enters this state, gradient-based training provides no signal to
 Market Regime Engine (12 regimes: 8 standard + 4 adversarial, Markov transitions)
          │
          ▼
-┌────────────────────────────────────────────────────┐
+┌─────────────────────────────────────────────────────┐
 │ Risk Manager (RM)   → obs: (25,)  act: (3,)         │
 │   ↓ size limit ℓ, block flag b, message m_RM        │
 │ Portfolio Manager (PM) → obs: (28,)  act: (2,)      │
 │   ↓ capital alloc c, veto v, message m_PM           │
-│ Trader              → obs: (30,)  act: mixed         │
+│ Trader              → obs: (30,)  act: mixed        │
 │   ↓ direction d, size s, SL, TP                     │
 │ Portfolio / Environment                             │
-│   ↓ reward Rⁱ (decoupled), next obs                │
-└────────────────────────────────────────────────────┘
+│   ↓ reward Rⁱ (decoupled), next obs                 │
+└─────────────────────────────────────────────────────┘
 ```
 
 All agents use a shared **Actor-Critic MLP**: 3 hidden layers × 256 units, LayerNorm, GELU, orthogonal init. The Trader uses a mixed discrete/continuous output head. Each agent receives only its own reward signal — institutional independence is enforced by design.
