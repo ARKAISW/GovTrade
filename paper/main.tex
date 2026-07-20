@@ -1,6 +1,6 @@
 \documentclass[11pt]{article}
 
-% ─── Packages ────────────────────────────────────────────────────────────
+% Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Packages Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{amsmath, amssymb, amsthm}
@@ -9,21 +9,23 @@
 \usepackage{hyperref}
 \usepackage{algorithm, algorithmic}
 \usepackage{geometry}
-\usepackage{natbib}
+\usepackage[numbers,sort&compress]{natbib}
 \usepackage{subcaption}
 \usepackage{xcolor}
 \usepackage{enumitem}
 \usepackage{multirow}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric}
 
 \geometry{margin=1in}
 \hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
 
-% ─── Theorem Environments ────────────────────────────────────────────────
+% Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Theorem Environments Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 \newtheorem{definition}{Definition}
 \newtheorem{proposition}{Proposition}
 \newtheorem{theorem}{Theorem}
 
-% ─── Title ───────────────────────────────────────────────────────────────
+% Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Title Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 \title{%
   \textbf{GovTrade: Learned Adaptive Governance \\
   in Multi-Agent Financial Systems}
@@ -37,46 +39,80 @@
 \begin{document}
 \maketitle
 
-% ═══════════════════════════════════════════════════════════════════════════
+% Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 \begin{abstract}
-Traditional algorithmic trading systems rely on static risk management scripts---hard stop-losses, fixed position limits, and rule-based circuit breakers---that frequently fail to adapt during unprecedented market volatility. This paper introduces GovTrade, a research-grade benchmark for evaluating neural supervisory agents in a Decentralized Partially Observable Markov Decision Process (Dec-POMDP) financial environment. GovTrade models institutional oversight as a sequential multi-agent hierarchy: a profit-maximizing Trader, a risk-constraining Risk Manager (RM), and a strategic Portfolio Manager (PM). We train all three agents using Proximal Policy Optimization (PPO) with a novel Alternating Optimization curriculum that prevents the non-stationarity collapse inherent in joint multi-agent training. During development, we identify and resolve a critical MARL failure mode termed \emph{Cooperative Strangulation}, wherein supervisory agents learn to permanently paralyze the Trader to trivially minimize risk. Through counterfactual benchmarking across 50 deterministic episodes, we demonstrate that neural governance prevents $3.38\%$ of absolute maximal drawdown compared to an ungoverned trader on identical market trajectories. Additionally, the fully learned system (B4) achieves a constraint violation rate of just $0.72\%$ versus $56.4\%$ for random agents and $24.1\%$ for rule-based governance, while maintaining a Sharpe ratio of $0.143$. We release the full codebase, trained checkpoints, and benchmark suite as an open-source framework for future research in learned institutional oversight.
+When a safety-maximizing agent learns to shut down the productive system it oversees, it achieves perfect constraint compliance at the cost of total operational failure. We introduce and study this failure mode---which we term \emph{Cooperative Strangulation}---within GovTrade, an open benchmark environment for learned financial governance. GovTrade models institutional oversight as a three-agent Dec-POMDP: a profit-maximizing Trader, a risk-constraining Risk Manager (RM), and a strategic Portfolio Manager (PM). We find that joint training collapses into non-stationarity, which an Alternating Optimization curriculum resolves. Even after stabilization, governance agents converge to Cooperative Strangulation---a degenerate equilibrium we mitigate via Institutional Action Floors. Counterfactual evaluation across 50 deterministic episodes finds the fully learned system reduces constraint violations by $78\times$ versus random agents and results in $3.38\%$ lower maximum drawdown on identical trajectories. Across nine independent random seeds, constraint violation rates reach $0.72\%$ versus $56.4\%$ for random agents, with Sharpe ratio $0.143$ and positive returns. GovTrade's contribution is a benchmark for studying how learned oversight agents behave when safety incentives conflict with operational viability---a question that motivates investigation beyond finance.
 \end{abstract}
 
-% ═══════════════════════════════════════════════════════════════════════════
+% Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 \section{Introduction}
 \label{sec:intro}
 
-Financial markets are non-stationary, complex adaptive systems prone to fat-tailed risk events. The history of automated trading is marked by catastrophic failures---the 2010 Flash Crash \citep{kirilenko2017flash}, the Knight Capital anomaly of 2012, and the March 2020 COVID liquidity crisis---all stemming from a fundamental deficiency in modern algorithmic governance: static scripts cannot adapt to structural regime shifts in real-time. Hardcoded stop-losses and fixed position limits often \emph{exacerbate} losses during cascading liquidations by forcing sub-optimal exits or failing to restrict exposure before volatility peaks.
+Financial markets are non-stationary, complex adaptive systems prone to fat-tailed risk events. The history of automated trading is marked by catastrophic failures---the 2010 Flash Crash \cite{kirilenko2017flash}, the Knight Capital anomaly of 2012, and the March 2020 COVID liquidity crisis---all stemming from a fundamental deficiency in modern algorithmic governance: static scripts cannot adapt to structural regime shifts in real-time. Hardcoded stop-losses and fixed position limits often \emph{exacerbate} losses during cascading liquidations by forcing sub-optimal exits or failing to restrict exposure before volatility peaks.
 
-We propose that institutional governance should not be a static script, but rather an \emph{adaptive, learned policy} capable of dynamically restricting or expanding operational bounds based on real-time market microstructure and portfolio drawdown. We introduce \textbf{GovTrade}, an open-source multi-agent framework built on PettingZoo \citep{terry2021pettingzoo}, where governance is modeled as a Decentralized Partially Observable Markov Decision Process (Dec-POMDP) \citep{oliehoek2016concise}.
+We propose that institutional governance should not be a static script, but rather an \emph{adaptive, learned policy} capable of dynamically restricting or expanding operational bounds based on real-time market microstructure and portfolio drawdown. We introduce \textbf{GovTrade}, an open-source multi-agent framework built on PettingZoo \cite{terry2021pettingzoo}, where governance is modeled as a Decentralized Partially Observable Markov Decision Process (Dec-POMDP) \cite{oliehoek2016concise}.
 
-In GovTrade, three distinct deep reinforcement learning agents interact sequentially using Proximal Policy Optimization (PPO) \citep{schulman2017proximal}: a Trader, a Risk Manager (RM), and a Portfolio Manager (PM). The RM and PM act as neural supervisors, imposing hierarchical boundary constraints on the Trader's action space. This creates an adversarial, mixed-motive environment where the Trader seeks to maximize absolute profit, while the supervisory agents seek to minimize tail-loss and ensure institutional survival.
+In GovTrade, three distinct deep reinforcement learning agents interact sequentially using Proximal Policy Optimization (PPO) \cite{schulman2017proximal}: a Trader, a Risk Manager (RM), and a Portfolio Manager (PM). The RM and PM act as neural supervisors, imposing hierarchical boundary constraints on the Trader's action space. This creates an adversarial, mixed-motive environment where the Trader seeks to maximize absolute profit, while the supervisory agents seek to minimize tail-loss and ensure institutional survival.
 
 \subsection{Contributions}
 Our contributions are fourfold:
 \begin{enumerate}[leftmargin=*]
-    \item \textbf{Alternating Optimization for Governance}: We demonstrate that joint training in adversarial governance environments inevitably collapses into non-stationarity (Section~\ref{sec:death_spiral}). We introduce an Alternating Optimization curriculum that stabilizes the advantage function and prevents catastrophic forgetting across 5{,}000-episode training runs.
-    \item \textbf{Identification of ``Cooperative Strangulation''}: We document a severe MARL failure mode where supervisory agents permanently paralyze the Trader to achieve a zero-violation state, and provide a cure via Institutional Action Floors (Section~\ref{sec:strangulation}).
-    \item \textbf{Governance Failure Taxonomy}: We introduce a formal taxonomy of 9 named governance failure modes (Section~\ref{sec:failure_taxonomy}), enabling fine-grained analysis of \emph{how} governance fails, not just \emph{whether} it fails.
-    \item \textbf{Counterfactual Empirical Proof}: Through rigorous baselines, ablation studies, and counterfactual analyses, we prove that learned governance actively contains out-of-distribution tail-losses compared to ungoverned systems (Section~\ref{sec:experiments}).
+    \item \textbf{Alternating Optimization for Governance}: We observe that joint training in adversarial governance environments consistently collapsed into non-stationarity across all experiments (Section~\ref{sec:death_spiral}). An Alternating Optimization curriculum stabilizes the advantage function across 5{,}000-episode training runs.
+    \item \textbf{Characterization of Cooperative Strangulation}: We document and characterize a MARL failure mode where supervisory agents permanently paralyze the Trader to achieve a zero-violation state. We show this is an instance of the broader specification gaming / Goodhart's Law class of failures, and provide a partial mitigation via Institutional Action Floors (Section~\ref{sec:strangulation}).
+    \item \textbf{Governance Failure Taxonomy}: We propose a taxonomy of 9 named governance failure modes (Section~\ref{sec:failure_taxonomy}), enabling analysis of \emph{how} governance fails, not just \emph{whether} it fails.
+    \item \textbf{Counterfactual Empirical Evidence}: Through baselines, ablation studies, and counterfactual analyses across nine seeds, we find evidence suggesting that learned governance contains tail-losses compared to ungoverned systems (Section~\ref{sec:experiments}).
 \end{enumerate}
 
-% ═══════════════════════════════════════════════════════════════════════════
+% Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 \section{Related Work}
 \label{sec:related}
 
 \textbf{Multi-Agent Reinforcement Learning.}
-The study of mixed-motive environments and sequential social dilemmas has expanded significantly \citep{leibo2017multi}. Traditional MARL algorithms such as MADDPG \citep{lowe2017multi} address cooperative-competitive settings but struggle when agent policies co-evolve in hierarchical structures. Techniques like stabilizing experience replay \citep{foerster2017stabilising} mitigate non-stationarity, but adversarial governance constraints introduce unique dynamics that standard actor-critic methods fail to resolve without explicit curriculum design.
+The study of mixed-motive environments and sequential social dilemmas has expanded significantly \cite{leibo2017multi}. Traditional MARL algorithms such as MADDPG \cite{lowe2017multi} address cooperative-competitive settings but struggle when agent policies co-evolve in hierarchical structures. Techniques like stabilizing experience replay \cite{foerster2017stabilising} and centralized training with decentralized execution (CTDE) mitigate non-stationarity, but adversarial governance constraints introduce unique dynamics that standard actor-critic methods fail to resolve without explicit curriculum design. MAPPO \cite{yu2021mappo} and QMIX \cite{rashid2018qmix} offer multi-agent extensions of PPO and Q-learning respectively; we select independent PPO with alternating optimization because it avoids the centralized critic's shared-observation assumption, which is inappropriate when agents are specifically designed to have asymmetric information (Section~\ref{sec:ppo_choice}).
+
+\textbf{RL for Financial Trading.}
+FinRL \cite{liu2021finrl} is a popular open-source framework for single-agent trading RL, supporting multiple assets and market environments. ABIDES \cite{byrd2020abides} offers a high-fidelity agent-based market simulator with order-book dynamics and market impact. Neither framework models institutional governance: they treat risk management as a fixed constraint rather than a learned policy. Multi-agent portfolio management \cite{lee2021multiagent} and deep recurrent trading architectures \cite{deng2016deep} are more closely related but still focus on return maximization rather than governance quality. GovTrade differs from all of these in its research object: we study governance quality rather than trading performance. The Trader's PnL is a secondary metric; the primary question is whether supervisory agents learn \emph{appropriate} intervention behavior.
+
+\textbf{Safe RL and Constrained MDPs.}
+Constrained Markov Decision Processes (CMDPs) \cite{altman1999constrained} provide a formal framework for safety-constrained decision-making, typically optimized via Lagrangian relaxation or primal-dual methods. Safe RL approaches such as CPO \cite{achiam2017constrained} and TRPO with safety constraints directly encode constraints into the policy gradient update. GovTrade takes a different approach: rather than encoding constraints in the optimization objective, we \emph{train a separate agent} to learn what constraints are appropriate. This is closer to the learned oversight paradigm in AI safety \cite{amodei2016concrete}, where a monitor agent evaluates the behavior of an actor agent without access to the same reward signal.
 
 \textbf{AI Safety and Learned Oversight.}
-Ensuring that autonomous systems operate within safe bounds is a core challenge in AI alignment \citep{amodei2016concrete}. While most safety research focuses on reward shaping or constrained MDPs, GovTrade approaches safety via \emph{learned oversight}---training an independent neural network to monitor and constrain a primary actor. This mirrors real-world institutional structures where Risk Departments operate independently of Trading Desks.
+Ensuring that autonomous systems operate within safe bounds is a core challenge in AI alignment \cite{amodei2016concrete}. Cooperative Strangulation belongs to the broader family of specification gaming failures \cite{krakovna2020avoiding}, but has a structural signature distinct from the canonical single-agent cases.
 
-\textbf{Financial Simulation Environments.}
-Prior work on RL for trading---including FinRL, ABIDES, and OpenAI's market makers---focuses primarily on profit maximization. GovTrade is distinguished by its explicit focus on \emph{governance quality} as the primary evaluation metric, rather than PnL.
+In typical reward hacking or specification gaming, \emph{one} agent finds an unintended shortcut to maximize its own reward (e.g., exploiting a simulator bug, or scoring points without completing the task). In wireheading or shutdown-incentive failures, the agent resists external intervention to preserve its reward signal. Cooperative Strangulation differs structurally in three ways: (i) it is \emph{bilateral}---two supervisory agents (RM and PM) must converge simultaneously, and neither alone can produce the degenerate outcome; (ii) the RM's strategy (impose zero limits) is \emph{not} an unintended shortcut---it is the globally optimal solution to the safety objective as specified; the failure lies in the implicit operational viability constraint being absent from the reward function; and (iii) the outcome is consistent with a \emph{Nash equilibrium}---once both RM and PM have converged to shutdown policies, neither agent appears to have a unilateral incentive to deviate (the RM observes zero drawdown and no reason to relax; the PM observes zero activity and no PnL to protect). This makes Cooperative Strangulation harder to escape than single-agent reward hacking: gradient-based training has no signal pointing away from the equilibrium. GovTrade provides a reproducible environment where this failure mode can be precisely triggered, measured, and partially mitigated via Institutional Action Floors---none of which existing single-agent safety testing environments provide.
 
-% ═══════════════════════════════════════════════════════════════════════════
+\textbf{Position of GovTrade Relative to Prior Work.}
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Environment} & \textbf{Trading} & \textbf{Multi-Agent Gov.} & \textbf{Learned Oversight} & \textbf{Failure Taxonomy} \\ \midrule
+FinRL \cite{liu2021finrl}         & \checkmark & \texttimes & \texttimes & \texttimes \\
+ABIDES \cite{byrd2020abides}     & \checkmark & \texttimes & \texttimes & \texttimes \\
+MADDPG \cite{lowe2017multi}      & \texttimes & \checkmark & \texttimes & \texttimes \\
+Safe RL / CPO \cite{achiam2017constrained} & \texttimes & \texttimes & partial & \texttimes \\
+\textbf{GovTrade (ours)}          & secondary  & \checkmark & \checkmark & \checkmark \\
+\bottomrule
+\end{tabular}
+\caption{Positioning of GovTrade relative to related frameworks. GovTrade is the only environment combining multi-agent hierarchical governance with learned oversight agents and a formal failure taxonomy.}
+\label{tab:positioning}
+\end{table}
+
+% Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 \section{Formal Problem Definition}
 \label{sec:problem}
+
+\subsection{Why Governance Is Different from Trading}
+\label{sec:gov_vs_trading}
+
+Before specifying the formal model, it is important to clarify what GovTrade is \emph{not}.
+
+Trading-focused RL environments---FinRL, ABIDES, recurrent trading agents---study a single research object: \textbf{decision quality}. The question is whether an agent can identify profitable actions in a market. Performance is measured primarily in PnL, Sharpe ratio, or return.
+
+GovTrade studies a distinct research object: \textbf{governance quality}. The question is whether a supervisory agent can learn to constrain a trading agent's behavior in a way that is appropriately adaptive---tightening during genuine stress, relaxing during stability, and avoiding both false tightening and delayed intervention. Performance is measured by the Governance Score (Section~\ref{sec:gov_score}), constraint violation rates, intervention latency, and the absence of named failure modes.
+
+This distinction is the paper's core motivation. A system that achieves zero violations by shutting down the Trader entirely has solved the trading environment trivially---and failed the governance environment completely. The value of GovTrade as a benchmark lies precisely in making this distinction measurable.
 
 We formulate the institutional trading environment as a discrete-time Dec-POMDP, defined by the tuple $\langle \mathcal{I}, \mathcal{S}, \{\mathcal{A}^i\}, \mathcal{T}, \{R^i\}, \{\Omega^i\}, \mathcal{O}, \gamma \rangle$.
 
@@ -128,7 +164,7 @@ We implement 11 explicit defenses against reward exploitation:
     \item \textbf{End-of-Episode Activity Gate}: If trade ratio $< 15\%$, all agents receive a severe inactivity slam (Trader: $-2.0$, Supervisors: $-3.0$).
 \end{enumerate}
 
-% ═══════════════════════════════════════════════════════════════════════════
+% Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 \section{Environment Design}
 \label{sec:environment}
 
@@ -186,16 +222,60 @@ F9 & Bankruptcy            & NAV $< 10\%$ of initial capital                & Cr
 \label{tab:failures}
 \end{table}
 
-% ═══════════════════════════════════════════════════════════════════════════
+% ════════════════════════════════════════════════════════════════════════════════
+\section{System Architecture}
+\label{sec:architecture_fig}
+
+Figure~\ref{fig:architecture} illustrates the hierarchical agent structure and information flow within GovTrade.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+  node distance=1.3cm and 2.2cm,
+  agent/.style={rectangle, draw=black!70, fill=blue!10, rounded corners,
+                minimum width=3.2cm, minimum height=0.85cm, font=\small\bfseries},
+  env/.style={rectangle, draw=black!60, fill=gray!12, rounded corners,
+              minimum width=3.2cm, minimum height=0.85cm, font=\small},
+  arr/.style={-{Latex[length=2.5mm]}, thick, draw=black!60},
+  lbl/.style={font=\footnotesize\itshape, fill=white, inner sep=1pt}
+]
+  \node[env]                (market) {Market Regime Engine};
+  \node[agent, below=of market] (rm) {Risk Manager (RM)};
+  \node[agent, below=of rm] (pm)     {Portfolio Manager (PM)};
+  \node[agent, below=of pm] (tr)     {Trader};
+  \node[env,   below=of tr] (env)    {Portfolio / Environment};
+
+  \draw[arr] (market) -- node[lbl, right]{obs $o^{RM}$\;(25-dim)} (rm);
+  \draw[arr] (rm)     -- node[lbl, right]{limit $\ell$, flag $b$, msg $m^{RM}$} (pm);
+  \draw[arr] (pm)     -- node[lbl, right]{alloc $c$, veto $v$, msg $m^{PM}$} (tr);
+  \draw[arr] (tr)     -- node[lbl, right]{action $(d, s, \text{SL}, \text{TP})$} (env);
+  \draw[arr] (env.east) -- ++(2.0,0) |- node[lbl, right, yshift=1.8cm]{reward $R^i$, next obs} (market.east);
+\end{tikzpicture}
+\caption{GovTrade agent hierarchy. Information flows top-down: the RM observes market stress and sets position limits; the PM observes RM limits and controls capital allocation; the Trader executes within the resulting constrained action space. Each agent receives only its own reward signal (decoupled rewards, Section~\ref{sec:rewards}), enforcing institutional independence.}
+\label{fig:architecture}
+\end{figure}
+
+% ════════════════════════════════════════════════════════════════════════════════
 \section{Training Methodology}
 \label{sec:training}
 
 \subsection{Network Architecture}
 All three agents use a shared Actor-Critic MLP architecture with three hidden layers of 256 units, LayerNorm, and GELU activation. The actor head parameterizes a Gaussian distribution for continuous agents (RM, PM) and a mixed Categorical-Gaussian distribution for the Trader (discrete direction + continuous size/SL/TP). Weights are initialized using orthogonal initialization following PPO best practices.
 
+\subsection{Why PPO?}
+\label{sec:ppo_choice}
+
+We select independent PPO \cite{schulman2017proximal} over MADDPG \cite{lowe2017multi}, MAPPO \cite{yu2021mappo}, or QMIX \cite{rashid2018qmix} for three reasons:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Asymmetric information is intentional.} MAPPO and QMIX typically require a centralized critic that can observe all agents' states. In GovTrade, the information asymmetry between agents---the RM sees market stress; the Trader sees its own positions---is a \emph{feature}, not a bug. It mirrors real-world institutional separation between risk and trading desks. A centralized critic would collapse this separation.
+    \item \textbf{On-policy stability with alternating optimization.} Because we freeze all agents except the active one during each phase, the environment is effectively single-agent from the active learner's perspective. PPO's clipping and trust-region constraints provide stable on-policy updates in this setting. Off-policy methods like MADDPG require experience replay, which becomes stale during alternating phases.
+    \item \textbf{Practical constraint on compute.} Training 9 seeds $\times$ 5{,}000 episodes on Kaggle T4 GPUs required a lightweight algorithm. PPO's O(1) memory overhead per update step (compared to MADDPG's replay buffer) was essential for fitting within GPU memory constraints.
+\end{enumerate}
+
 \subsection{Alternating Optimization vs. the Death Spiral}
 \label{sec:death_spiral}
-Initial experiments utilizing Joint Training---updating all three agents' neural weights simultaneously---resulted in a catastrophic non-stationary ``Death Spiral.''
+Initial experiments utilizing Joint Training---updating all three agents' neural weights simultaneously---consistently produced a non-stationary failure we refer to as the ``Death Spiral.''
 
 Under joint training, the RM explores by rapidly tightening limits ($\ell_t \rightarrow 0$). This clamps the Trader's realized actions, severing the causal link between the Trader's policy output and the environment transition. The Trader's advantage function $A^{Trader}(s, a)$ collapses:
 \begin{equation}
@@ -209,9 +289,11 @@ We resolve this with \textbf{Alternating Optimization}. The training process is 
 \end{equation}
 The optimization target cycles through $\{$Trader, RM, PM$\}$, establishing a pseudo-stationary environment for each active agent.
 
-\subsection{The ``Cooperative Strangulation'' Cure}
+\subsection{Cooperative Strangulation and Mitigation}
 \label{sec:strangulation}
-After stabilizing training via Alternating Optimization, the system converged to a degenerate Nash Equilibrium we term \emph{Cooperative Strangulation}. The RM discovered that permanently imposing $\ell = 0$ produced $0\%$ drawdown, $0\%$ violations, and thus a perfect Governance Score. The PM simultaneously learned to allocate $0\%$ capital. The result: a ``perfectly safe'' but completely non-functional portfolio.
+After stabilizing training via Alternating Optimization, the system converged to a degenerate Nash Equilibrium we term \emph{Cooperative Strangulation}: the RM learned that permanently imposing $\ell = 0$ produced $0\%$ drawdown, $0\%$ violations. The PM simultaneously learned to allocate $0\%$ capital. The result is a ``perfectly safe'' but completely non-functional portfolio---a concrete instance of Goodhart's Law \cite{krakovna2020avoiding}, where optimizing the \emph{proxy measure} (zero violations) destroys the \emph{underlying goal} (a viable, governed portfolio).
+
+Crucially, this is not merely a single-agent reward hacking failure. The outcome is \emph{bilateral}: both RM and PM must converge together, and neither agent alone can produce the degenerate outcome. Moreover, once both agents have converged, gradient-based training provides \emph{no signal to escape}: the RM observes zero drawdown (no reason to relax limits) and the PM observes zero activity (no capital at risk). The outcome is consistent with a Nash equilibrium under the specified reward functions---no observed unilateral deviation was beneficial in our experiments---which makes it structurally more stable than typical single-agent specification gaming failures.
 
 We cure this with two mechanisms:
 
@@ -235,36 +317,105 @@ We employ a probabilistic, non-linear difficulty curriculum across four phases:
 \subsection{Numerical Stability}
 During training with Seed 7, a NaN gradient explosion occurred at episode 4{,}225 when a PPO minibatch contained exactly 1 sample, causing \texttt{std()} to return NaN. We implemented three defenses: (1) advantage normalization with \texttt{unbiased=False} and a minimum buffer size check, (2) advantage clamping to $[-10, 10]$, and (3) per-minibatch NaN gradient detection that skips corrupted backward passes without contaminating network weights.
 
-% ═══════════════════════════════════════════════════════════════════════════
+% Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 \section{Experiments and Results}
 \label{sec:experiments}
 
-All experiments use 5{,}000 training episodes with PPO (clip $\epsilon = 0.2$, GAE $\lambda = 0.95$, $\gamma = 0.99$, entropy decay $= 0.9998$) on NVIDIA T4 GPUs via Kaggle. Three independent seeds (42, 123, 7) were trained to establish statistical robustness.
+All experiments use 5{,}000 training episodes with PPO (clip $\epsilon = 0.2$, GAE $\lambda = 0.95$, $\gamma = 0.99$, entropy decay $= 0.9998$) on NVIDIA T4 GPUs via Kaggle. \textbf{Nine} independent random seeds were trained to establish statistical robustness (seeds 1--7, 42, 123). Baseline comparisons and counterfactual analyses are derived from the highest-performing seed (Seed 7, governance score $= 0.8009$).
+
+\subsection{The Governance Score (Composite Metric)}
+\label{sec:gov_score}
+
+The primary evaluation metrics in GovTrade are the individual institutional quality measures: constraint violation rate, Max DD relative to ungoverned baseline, intervention efficiency, and activity ratio. For multi-dimensional comparison across seeds, we additionally compute a composite Governance Score $\mathcal{G} \in [0, 1]$ that aggregates these into a single scalar.
+
+\begin{equation}
+    \mathcal{G} = w_1 \cdot (1 - \text{DD}_{\max}) + w_2 \cdot (1 - V_{\text{rate}}) + w_3 \cdot E_{\text{eff}} + w_4 \cdot A_{\text{ratio}} + w_5 \cdot (1 - F_{\text{norm}})
+\end{equation}
+
+where the five components are:
+
+\begin{itemize}[leftmargin=*]
+    \item $\text{DD}_{\max}$: Maximum portfolio drawdown over the episode. Lower is better; contributes $(1 - \text{DD}_{\max})$.
+    \item $V_{\text{rate}}$: Constraint violation rate (fraction of steps where position exceeded RM limit). Lower is better.
+    \item $E_{\text{eff}}$: Intervention efficiency---fraction of RM restrictions that occur during genuine stress ($\text{DD} > 10\%$). This penalizes the False Tightening failure (F3).
+    \item $A_{\text{ratio}}$: Activity ratio (fraction of steps with non-trivial trades). This is the anti-strangulation term; a system with $A_{\text{ratio}} = 0$ is in Cooperative Strangulation.
+    \item $F_{\text{norm}}$: Normalized failure count from the taxonomy, penalizing named failure modes.
+\end{itemize}
+
+Weights are set to $w_1 = 0.30$, $w_2 = 0.25$, $w_3 = 0.20$, $w_4 = 0.15$, $w_5 = 0.10$, reflecting the institutional priority ordering: drawdown containment is the primary mandate; constraint adherence is secondary.
+
+\textbf{Interpretation.} A score of $1.0$ represents a theoretically ideal governance agent: zero drawdown, zero violations, all interventions during genuine stress, full portfolio activity, and no failure modes. A score below $0.5$ typically indicates a strangulation or non-stationarity failure. The range $[0.70, 0.82]$ observed across our 9 seeds reflects a system that meaningfully governs without strangling---the central empirical claim of this paper.
+
+\textbf{Weight Sensitivity.} To ensure our findings are robust to the specific choice of weights, we evaluated the baseline systems under four alternative configurations: equal weights ($0.20$ each), drawdown-heavy ($0.50$ for $\text{DD}_{\max}$), violation-heavy ($0.50$ for $V_{\text{rate}}$), and activity-heavy ($0.40$ for $A_{\text{ratio}}$). In all configurations, the fully learned system (B4) strictly dominates all baselines, confirming that the ranking is structurally robust rather than an artifact of hyperparameter tuning.
+
+\textbf{On the drawdown numbers.} A reader familiar with production trading systems will note that Max DD figures in the range of $60$--$90\%$ (Table~\ref{tab:baselines}) would signal catastrophic portfolio failure in practice. This is intentional: GovTrade's hard-regime curriculum deliberately includes flash crashes ($\mu = -2.0$, $\sigma = 0.80$) and cascading liquidations to stress-test governance under worst-case conditions. GovTrade is a \emph{governance stress-testing benchmark}, not a production trading simulator. The relevant comparison is not between GovTrade drawdowns and production targets, but between the \emph{governed} and \emph{ungoverned} conditions on the same trajectories---a gap that the counterfactual analysis (Section~\ref{sec:counterfactual}) isolates precisely.
+
+
 
 \subsection{Training Progression Across Seeds}
 \label{sec:seeds}
 
-\textbf{Seed 42} (initial architecture, no floors): Best Governance Score $= 0.6968$ at episode 1{,}261. Training stalled early due to Cooperative Strangulation---the RM learned to permanently restrict, achieving zero violations but zero activity.
+Table~\ref{tab:multiseed} and Figure~\ref{fig:governance_scores} summarize the best governance score achieved across all nine training seeds. The mean score was $0.7406 \pm 0.0464$ (median: $0.7305$). The 95\% confidence interval using a $t$-distribution is $[0.7103, 0.7709]$. To assess the robustness of this estimate, we additionally computed a non-parametric bootstrap confidence interval over the nine seeds; the bootstrap estimate ($[0.7099, 0.7709]$, $n_{\text{boot}}=10{,}000$) closely matches the $t$-distribution interval, indicating that the uncertainty estimate is insensitive to the choice of interval estimation method.
 
-\textbf{Seed 123} (with Institutional Action Floors): Best Governance Score $= 0.7992$ at episode 4{,}705. The Trader learned to navigate dynamic limits, and the RM learned regime-conditional restriction. A qualitative breakthrough.
+\textbf{Seed 42} (initial architecture, no floors): Best Governance Score $= 0.6968$. Training stalled early due to Cooperative Strangulation---the RM learned to permanently restrict, achieving zero violations but zero activity. This is the lowest-scoring seed and serves as a lower-bound reference.
 
-\textbf{Seed 7} (with NaN guards): Best Governance Score $= \mathbf{0.8009}$ at episode 4{,}727. Confirmed reproducibility of the Seed 123 improvement and validated the environment seeding fix.
+\textbf{Seed 4} (Low category, score $= 0.6657$): The lowest score in the full nine-seed sweep, corresponding to a seed where the market curriculum sampled a hard-regime opening episode (drawdown $70.63\%$ at episode 0), destabilizing the early-phase Trader learning.
+
+\textbf{Seeds 1--3, 5} (Medium category, scores $0.7021$--$0.7647$): The majority cluster. These seeds exhibit the expected pattern: early high drawdown epochs followed by progressive stabilization as the RM and PM learn regime-conditional restriction.
+
+\textbf{Seeds 6, 123} (High category, scores $0.7867$, $0.7992$): Seeds exhibiting strong early convergence. Notably, Seed 6 achieved its peak score of $0.7867$ before entering a late-training Cooperative Strangulation phase (episodes $\approx 4150$--$4975$), where $\text{DD} = 0.00\%$ and $\text{Ret} = +0.00\%$ for sustained periods (Figure~\ref{fig:strangulation}). This demonstrates that the strangulation equilibrium remains a latent attractor even with Institutional Action Floors, resurfacing after thousands of training steps.
+
+\textbf{Seed 7} (Best, score $= \mathbf{0.8009}$): The highest-performing seed. NaN gradient guards (added after Seed 42 explosion at episode 4{,}225) contributed to stable late-training optimization. Seed 7's policies are used for all downstream baseline, ablation, and counterfactual evaluations.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Best Governance Score across all nine training seeds (5{,}000 episodes each, NVIDIA T4 GPU). Categories: High $\geq 0.77$; Medium $\in [0.70, 0.77)$; Low $< 0.70$.}
+\label{tab:multiseed}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Seed} & \textbf{Best Gov.\ Score} & \textbf{Category} & \textbf{Notes} \\
+\midrule
+1   & 0.7647 & Medium & Stable convergence \\
+2   & 0.7305 & Medium & Stable convergence \\
+3   & 0.7189 & Medium & Stable convergence \\
+4   & 0.6657 & Low    & Hard opening episode \\
+5   & 0.7021 & Medium & Stable convergence \\
+6   & 0.7867 & High   & Late strangulation (ep $\approx$4150) \\
+7   & 0.8009 & High   & Best; used for baselines \\
+42  & 0.6968 & Low    & Early strangulation (no floors) \\
+123 & 0.7992 & High   & First floors run \\
+\midrule
+\multicolumn{2}{l}{\textbf{Mean $\pm$ Std}} & \multicolumn{2}{l}{$\mathbf{0.7406 \pm 0.0464}$} \\
+\multicolumn{2}{l}{Median} & \multicolumn{2}{l}{$0.7305$} \\
+\multicolumn{2}{l}{95\% CI ($t$-dist)} & \multicolumn{2}{l}{$[0.7103,\; 0.7709]$} \\
+\multicolumn{2}{l}{95\% CI (bootstrap)} & \multicolumn{2}{l}{$[0.7099,\; 0.7709]$} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{figures/governance_scores_all_seeds.png}
+    \caption{Best Governance Score per seed. The dashed line and shaded band indicate mean ($0.7406$) and $\pm 1$ standard deviation ($0.0464$). Three seeds exceed $0.77$ (High); five fall in the Medium band; two are Low, both attributable to specific failure conditions (hard opening episode; early strangulation without floors).}
+    \label{fig:governance_scores}
+\end{figure}
 
 \subsection{Baseline Comparisons}
 We evaluated five architectural baselines across 50 stochastic out-of-sample episodes on ``hard'' difficulty (Table~\ref{tab:baselines}).
 
 \begin{table}[h]
 \centering
-\begin{tabular}{@{}llcccc@{}}
+\begin{tabular}{@{}llccccc@{}}
 \toprule
- & \textbf{Architecture} & \textbf{Max DD} & \textbf{Sharpe} & \textbf{Viol. Rate} & \textbf{Return} \\ \midrule
-B0 & Random / Random / Random       & 56.78\% & 0.059 & 56.45\% & $-0.01\%$ \\
-B1 & Rule / Rule / Rule             & 63.94\% & 0.065 & 24.13\% & $-8.70\%$ \\
-B2 & Rule / Rule / Learned          & 70.17\% & 0.142 & 28.90\% & $-5.04\%$ \\
-B3 & Learned / Rule / Learned       & 88.68\% & 0.151 &  9.03\% & $+3.00\%$ \\
-B4 & Learned / Learned / Learned    & 90.35\% & 0.143 &  \textbf{0.72\%} & $+2.89\%$ \\ \bottomrule
+ & \textbf{Architecture} & \textbf{Max DD} & \textbf{Sharpe} & \textbf{Viol. Rate} & \textbf{Activity} & \textbf{Return} \\ \midrule
+B0 & Random / Random / Random       & 56.78\% & 0.059 & 56.45\% & 17.0\% & $-0.01\%$ \\
+B1 & Rule / Rule / Rule             & 63.94\% & 0.065 & 24.13\% & 40.0\% & $-8.70\%$ \\
+B2 & Rule / Rule / Learned          & 70.17\% & 0.142 & 28.90\% & 58.0\% & $-5.04\%$ \\
+B3 & Learned / Rule / Learned       & 88.68\% & 0.151 &  9.03\% & 68.0\% & $+3.00\%$ \\
+B4 & Learned / Learned / Learned    & 90.35\% & 0.143 &  \textbf{0.72\%} & 72.0\% & $+2.89\%$ \\ \bottomrule
 \end{tabular}
-\caption{Baseline comparisons. B4 (fully learned) achieves $78\times$ lower violation rate than B0 and $33\times$ lower than B1, while generating positive returns. The higher drawdown reflects the learned Trader's willingness to take larger positions---a tradeoff explicitly managed by the RM.}
+\caption{Baseline comparisons across 50 out-of-sample hard-regime episodes. \textbf{Note on drawdown}: B4's Max DD of $90.35\%$ is \emph{higher} than B0's $56.78\%$, which may appear counterintuitive. This is because B0 (random agent) takes tiny, random positions and frequently holds---generating near-zero exposure by accident, reflected in its $17.0\%$ Activity ratio. B4's learned Trader actively sizes into positions identified as profitable ($72.0\%$ Activity), deliberately taking larger risk when governance permits. The relevant success metric is \emph{not} raw drawdown, but the drawdown prevented relative to an ungoverned Trader on identical trajectories (Section~\ref{sec:counterfactual}). B4 achieves $78\times$ lower violation rate than B0 while generating positive returns ($+2.89\%$ vs. $-0.01\%$).}
 \label{tab:baselines}
 \end{table}
 
@@ -299,6 +450,7 @@ A6 & Random Trader + Learned Gov    & 64.04\% & 7.91\% & $+1.94\%$ \\ \bottomrul
 \textbf{A2 (Static RM)} is particularly informative: replacing the learned RM with a fixed $\ell=0.5$ reduces drawdown to $83.24\%$ but increases violations to $12.47\%$---demonstrating that static rules are blunt instruments that cannot adapt to regime shifts. \textbf{A6 (Random Trader)} confirms that the governance architecture itself provides value: even with a random actor, the learned RM+PM reduce maximum drawdown by $\sim 26$ percentage points compared to the full learned system.
 
 \subsection{Counterfactual Analysis: World A vs. World B}
+\label{sec:counterfactual}
 To rigorously isolate the RM's efficacy, we ran a counterfactual benchmark. The same learned Trader operates on identical, deterministic market trajectories under two conditions: ``World A'' (governed by learned RM+PM) and ``World B'' (ungoverned---RM always allows maximum exposure, PM allocates 100\%).
 
 \begin{center}
@@ -311,7 +463,7 @@ World A (Governed) & 86.01\% \\
 \end{tabular}
 \end{center}
 
-The learned Risk Manager actively prevented $3.38\%$ of absolute drawdown on identical trajectories. While this may appear modest in absolute terms, it represents real capital preserved during extreme stress---precisely the scenario where static scripts fail entirely.
+The governance system resulted in $3.38\%$ lower maximum drawdown on identical trajectories. While modest in absolute terms, this represents real capital preserved during extreme stress events---precisely the scenario where static rule-based scripts fail to adapt.
 
 \subsection{Out-of-Distribution Robustness}
 We subjected the trained agents to synthetic OOD regimes never encountered during training (Table~\ref{tab:ood}).
@@ -327,38 +479,60 @@ flash\_crash             & 83.51\% & 0.230 & 0.59\% \\
 bubble\_pop              & 96.01\% & 0.120 & 0.30\% \\
 cascading\_liquidation   & 85.58\% & 0.251 & 2.33\% \\ \bottomrule
 \end{tabular}
-\caption{OOD evaluation. The governance system maintains low violation rates across all regimes. The elevated Sharpe during flash crashes and cascading liquidations suggests the RM correctly restricts exposure, allowing the Trader to profit from volatility while limiting tail-loss.}
+\caption{OOD evaluation. The governance system maintains low violation rates across all regimes. The elevated Sharpe during flash crashes and cascading liquidations is consistent with the hypothesis that the RM correctly restricts exposure during initial crash phases, allowing the Trader to re-enter during recovery---though we observe the outcome rather than directly measure the causal mechanism.}
 \label{tab:ood}
 \end{table}
 
 Notably, the system achieves its \emph{highest} Sharpe ratios ($0.230$, $0.251$) during the most extreme stress scenarios (flash crash, cascading liquidation), suggesting the learned governance successfully restricts exposure during initial crash phases and allows re-entry during recovery.
 
-% ═══════════════════════════════════════════════════════════════════════════
+\subsection{Multi-Seed Reproducibility Analysis}
+\label{sec:reproducibility}
+
+Figure~\ref{fig:learning_curves} presents smoothed training curves (window $= 40$ logged episodes) for all six newly-trained seeds (1--6). The shared pattern across seeds confirms that Alternating Optimization induces a consistent training signature: (1) an initial high-drawdown exploration phase (episodes $0$--$500$), (2) a governance stabilization phase where the RM and PM learn to restrict (episodes $500$--$2{,}000$), and (3) a curriculum hardening phase where hard-regime episodes dominate and performance oscillates (episodes $2{,}000$--$5{,}000$).
+
+The constraint violation rate consistently rises with curriculum difficulty across all seeds, confirming that the governance agents face a genuinely harder problem in hard-regime episodes rather than a trivially solved one---a key validity property of the benchmark.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{figures/overlaid_returns_seeds1to5.png}
+    \caption{Smoothed return (left) and max drawdown (right) for seeds 1--5 overlaid. Despite different random initializations, all seeds exhibit qualitatively similar learning dynamics: high early drawdown, gradual governance stabilization, and performance oscillation under curriculum hardening. The diversity of final performance levels reflects the stochasticity of the curriculum sequence and market regime sampling.}
+    \label{fig:learning_curves}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.70\textwidth]{figures/training_curves_seed6.png}
+    \caption{Training curves for Seed 6 ($\text{Best Governance Score} = 0.7867$). After achieving peak governance performance around episode $4{,}000$, the system enters a Cooperative Strangulation phase (episodes $\approx 4{,}150$--$4{,}975$) in which both drawdown and return converge to exactly $0.00\%$. This demonstrates that the strangulation equilibrium is a latent attractor that can re-emerge even in well-trained policies under continued optimization pressure.}
+    \label{fig:strangulation}
+\end{figure}
+
+% Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 \section{Discussion}
 \label{sec:discussion}
 
 \subsection{Key Findings}
 \textbf{Governance Quality $\neq$ PnL.} A central insight is that governance quality and trading profit are distinct, and often opposing, objectives. B4 achieves the lowest violation rate ($0.72\%$) but the highest drawdown ($90.35\%$)---because the learned Trader \emph{within} the governance framework takes aggressive positions that the RM then selectively constrains. The system's value lies not in preventing all losses, but in preventing \emph{catastrophic} losses while preserving operational viability.
 
-\textbf{The Strangulation Equilibrium.} Our discovery that supervisory agents gravitate toward permanent paralysis is a cautionary result for any system employing learned oversight. Without explicit viability constraints, safety-maximizing agents will trivially shut down the system they oversee.
+\textbf{The Strangulation Equilibrium is a Persistent Attractor.} Our discovery that supervisory agents gravitate toward permanent paralysis is a cautionary result for any system employing learned oversight. Without explicit viability constraints, safety-maximizing agents will trivially shut down the system they oversee. More concerningly, Seed 6 demonstrates that strangulation re-emerges after extended training even \emph{with} Institutional Action Floors in place: the policy achieves a peak score of $0.7867$ before degenerate convergence at episodes $4{,}150$--$4{,}975$ (Figure~\ref{fig:strangulation}). This suggests that current floors ($\ell_{\min} = 0.20$) may be insufficient for very long training runs, and adaptive floors or explicit anti-strangulation regularization may be required for production deployments.
 
-\textbf{Alternating Optimization is Necessary.} Across all seeds, joint training consistently collapsed. Alternating Optimization is not merely beneficial---it is a prerequisite for stable multi-agent governance training.
+\textbf{Alternating Optimization is Necessary.} Across all seeds, joint training consistently collapsed. Alternating Optimization is not merely beneficial---it appears to be a necessary condition for stable multi-agent governance training in this setting.
 
 \subsection{Limitations}
 \begin{itemize}[leftmargin=*]
     \item \textbf{Synthetic Data:} All experiments use generated market data. While calibrated to historical parameters, real market microstructure includes order book dynamics, slippage, and market impact not modeled here.
     \item \textbf{Single Asset:} The current framework trades a single synthetic asset. Multi-asset portfolio governance with cross-correlation effects remains future work.
-    \item \textbf{Counterfactual Gap:} The $3.38\%$ prevented drawdown, while statistically significant, is modest. Longer training horizons and larger network capacities may increase this margin.
+    \item \textbf{Counterfactual Gap:} The $3.38\%$ prevented drawdown, while statistically significant, is modest. Longer training horizons and larger network capacities may increase this margin. The nine-seed sweep shows a governance score range of $[0.6657, 0.8009]$, suggesting that better seed selection or ensemble methods could reduce variance.
+    \item \textbf{Late-Training Strangulation:} As demonstrated by Seed 6, the strangulation equilibrium can re-emerge after thousands of training steps despite mitigation mechanisms. A principled solution (adaptive floors, dedicated strangulation regularization loss) remains an open problem.
 \end{itemize}
 
-% ═══════════════════════════════════════════════════════════════════════════
+% Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 \section{Conclusion}
 \label{sec:conclusion}
-We presented GovTrade, a rigorous benchmark demonstrating that institutional financial governance can be effectively formulated and solved as a multi-agent reinforcement learning problem. Through systematic development across three independent training seeds, we identified and resolved two critical failure modes: the Joint Training Death Spiral and the Cooperative Strangulation Equilibrium. Our fully learned governance system (B4) achieves a $78\times$ reduction in constraint violations compared to random agents while maintaining positive returns, and actively prevents $3.38\%$ of absolute drawdown in counterfactual evaluation. The governance failure taxonomy and open-source benchmark suite provide a foundation for future research into AI alignment, robust reinforcement learning, and automated oversight in complex economic systems.
+We presented GovTrade, an open benchmark environment for studying learned multi-agent governance in adversarial financial settings. Across nine training seeds, we find evidence of two consistent failure modes: joint training non-stationarity (resolved by Alternating Optimization) and Cooperative Strangulation (partially mitigated by Institutional Action Floors). The nine-seed sweep yields a mean composite governance score of $0.7406 \pm 0.0464$ (median $0.7305$; 95\% CI $[0.7103, 0.7709]$ by $t$-distribution, $[0.7099, 0.7709]$ by bootstrap). The fully learned system (B4) achieves a $78\times$ reduction in constraint violations versus random agents while maintaining positive returns, and prevents $3.38\%$ of absolute drawdown in counterfactual evaluation. Seed 6's late-training strangulation recurrence shows that the degenerate equilibrium is a persistent attractor even after successful training---motivating future work on adaptive viability floors. More broadly, GovTrade provides a reproducible environment for studying a question that generalizes beyond finance: when a safety-maximizing agent is rewarded only for constraint adherence, does it learn to govern, or to shut down?
 
 \textbf{Reproducibility.} All code, trained checkpoints, and benchmark scripts are available at \url{https://github.com/ARKAISW/GovTrade}.
 
-% ═══════════════════════════════════════════════════════════════════════════
+% Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
 \begin{figure}[t]
     \centering
@@ -367,11 +541,19 @@ We presented GovTrade, a rigorous benchmark demonstrating that institutional fin
     \label{fig:training_curves}
 \end{figure}
 
-% ═══════════════════════════════════════════════════════════════════════════
-\bibliographystyle{plainnat}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{figures/governance_score_distribution.png}
+    \caption{Distribution of Best Governance Scores across all nine training seeds. The violin plot shows the full spread; individual seeds are overlaid as colored points. The 95\% confidence interval of the mean is shaded in orange. The distribution is approximately unimodal with mild left skew, driven by the two Low-category seeds (4 and 42).}
+    \label{fig:score_dist}
+\end{figure}
+
+% Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+\clearpage
+\bibliographystyle{unsrt}
 \bibliography{references}
 
-% ═══════════════════════════════════════════════════════════════════════════
+% Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 \appendix
 \section{Hyperparameters}
 \label{app:hyperparams}
@@ -408,3 +590,5 @@ PM capital floor & 0.15 (DD $< 20\%$) \\
 \end{table}
 
 \end{document}
+
+

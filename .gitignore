@@ -25,6 +25,16 @@ train1/
 *.pt
 *.zip
 
+# Kaggle run outputs and raw training logs (large/binary)
+kaggle_outputs/
+logs/
+outputdownloadlinks.txt
+
+# Generated plots (reproducible via make plots)
+plots/final/
+plots/*.png
+docs/plots/
+
 # Environment
 .env
 .env.local

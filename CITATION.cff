@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use GovTrade in your research, please cite it as below."
+type: software
+title: "GovTrade: Learned Adaptive Governance in Multi-Agent Financial Systems"
+authors:
+  - family-names: Sarkar
+    given-names: Arka
+    email: arkasarkar1507@gmail.com
+repository-code: "https://github.com/ARKAISW/GovTrade"
+abstract: >
+  GovTrade is an open benchmark environment for studying learned financial governance.
+  It models institutional oversight as a three-agent Dec-POMDP and documents
+  Cooperative Strangulation, a MARL failure mode where supervisory agents
+  converge to a permanent shutdown policy, achieving zero constraint violations
+  at the cost of complete portfolio inactivity.
+keywords:
+  - multi-agent reinforcement learning
+  - financial governance
+  - AI safety
+  - Dec-POMDP
+  - cooperative strangulation
+  - benchmark
+license: MIT
+year: 2026
